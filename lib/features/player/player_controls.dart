@@ -54,7 +54,6 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
   String? _hud; // transient centre indicator text
   IconData? _hudIcon;
   double _gestureStartValue = 0;
-  bool _mouseOver = false;
 
   bool get _mobile => Platform.isAndroid || Platform.isIOS;
   bool get _wide => MediaQuery.sizeOf(context).width >= 700;
@@ -271,11 +270,9 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
         cursor: showUi || _mobile ? MouseCursor.defer : SystemMouseCursors.none,
         onHover: (_) {
           if (!_mobile) {
-            _mouseOver = true;
             _poke();
           }
         },
-        onExit: (_) => _mouseOver = false,
         child: Stack(fit: StackFit.expand, children: [
           // Hit layer
           GestureDetector(

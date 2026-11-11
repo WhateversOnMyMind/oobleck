@@ -80,7 +80,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> with WidgetsBinding
       type: FileType.custom,
       allowedExtensions: const ['srt', 'vtt', 'ass', 'ssa', 'smi', 'sub'],
     );
-    final path = r?.firstOrNull?.path;
+    final path = r.firstOrNull?.path;
     if (path == null) return;
     try {
       final saved = await importSubtitleFile(path, session, ref.read(supportDirProvider));

@@ -176,7 +176,7 @@ class _KoreanSheetState extends ConsumerState<_KoreanSheet> {
       await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
     } else if (act == 'file') {
       final r = await FilePicker.pickFiles(type: FileType.custom, allowedExtensions: const ['smi', 'srt', 'ass', 'ssa', 'vtt', 'zip']);
-      final path = r?.firstOrNull?.path;
+      final path = r.firstOrNull?.path;
       if (path == null) return;
       final files = path.toLowerCase().endsWith('.zip')
           ? unzipSubtitles(await _read(path))
@@ -326,7 +326,7 @@ class _KoreanSheetState extends ConsumerState<_KoreanSheet> {
 
   Future<void> _browserFallbackFile() async {
     final r = await FilePicker.pickFiles(type: FileType.custom, allowedExtensions: const ['smi', 'srt', 'ass', 'ssa', 'vtt', 'zip']);
-    final path = r?.firstOrNull?.path;
+    final path = r.firstOrNull?.path;
     if (path == null) return;
     final bytes = await _read(path);
     final files = path.toLowerCase().endsWith('.zip') ? unzipSubtitles(bytes) : {p.basename(path): bytes};
