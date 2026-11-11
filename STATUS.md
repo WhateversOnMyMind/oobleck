@@ -5,7 +5,7 @@ build sandbox (probing it was blocked, and the plan says not to work around that
 verified only against hand-written `SYNTHETIC` fixtures. First thing to do: run **Settings > Advanced > Source
 diagnostics** and check each step against the live site.
 
-## Done (with tests: `flutter test`, 26 passing)
+## Done (with tests: `flutter test`, all passing)
 - **M0** Scaffold, lints, CI (`test`, `windows`, `android`, release on `v*` tags), README
 - **M1** Source layer: search / show / episodes / servers / embed; Megaplay (AES, URL signing, key refresh),
   Vidtube, Kiwi; server preference; diagnostics screen. Fixtures in `test/fixtures/anikoto/` (all SYNTHETIC)
@@ -23,13 +23,20 @@ diagnostics** and check each step against the live site.
 - **M6** Anime4K: bundled shaders, presets A/B/C Fast and HQ (chains verified against the repo)
 - **M7** Settings, empty/error states, README
 
-## Needs checking on real devices (could not run here)
+## Verified automatically (beyond unit tests)
+- `playback` CI job (real libmpv): plays a public HLS stream, seeks, changes speed, accepts the subtitle and Anime4K
+  mpv properties; and drives the real `PlayerSession` through the **offline path** (downloaded file, sidecar
+  subtitles auto-selected, resume at the saved position with the toast, per-show sync offset, progress saved).
+  Run locally with `OOBLECK_PLAYBACK=1 flutter test test/playback_smoke_test.dart test/player_session_test.dart`.
+- ffmpeg remux test (real ffmpeg); OpenSubtitles request/login/download flow against fixtures shaped like the v1 docs.
+
+## Still needs a real device or the live site (cannot be automated here)
 - Live anikoto/megaplay flow, including token expiry mid-playback (player re-signs and reloads on error;
   a stream whose segments need per-request tokens may need a local re-signing proxy)
 - Android: foreground service notification, Anime4K with `mediacodec-copy`, Flutter-rendered subtitles
   (libass needs a bundled font on Android, so Android uses Flutter text; ASS styling is desktop-only for now)
-- OpenSubtitles download flow (written to the v1 docs, needs a key to test)
-- Windows fullscreen toggling and ffmpeg remux
+- OpenSubtitles with a real API key (the account-login requirement for downloads is unconfirmed)
+- Windows fullscreen toggling, and the custom controls' layout/gestures (no UI test drives them yet)
 
 ## How to test each feature
 - Library: download an episode from a show page (download icon), open the Library tab, tap the poster, tap the episode, turn Wi-Fi off

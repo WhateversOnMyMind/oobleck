@@ -357,21 +357,24 @@ class DownloadManager {
     return out;
   }
 
-  /// Desktop only: if ffmpeg is on PATH, remux .ts -> .mp4 (stream copy).
-  Future<String> _maybeRemux(String path) async {
-    if (!(Platform.isWindows || Platform.isLinux || Platform.isMacOS) || !path.endsWith('.ts')) return path;
-    try {
-      final out = '${p.withoutExtension(path)}.mp4';
-      final r = await Process.run('ffmpeg', ['-y', '-loglevel', 'error', '-i', path, '-c', 'copy', out]);
-      if (r.exitCode == 0 && File(out).existsSync() && File(out).lengthSync() > 0) {
-        File(path).deleteSync();
-        return out;
-      }
-    } catch (_) {
-      // ffmpeg not installed: keep .ts
+  Future<String> _maybeRemux(String path) => remuxToMp4(path);
+}
+
+/// Desktop only: if ffmpeg is on PATH, remux .ts -> .mp4 (stream copy) and
+/// delete the .ts. Returns the new path, or [path] unchanged on any failure.
+Future<String> remuxToMp4(String path, {String ffmpeg = 'ffmpeg'}) async {
+  if (!(Platform.isWindows || Platform.isLinux || Platform.isMacOS) || !path.endsWith('.ts')) return path;
+  try {
+    final out = '${p.withoutExtension(path)}.mp4';
+    final r = await Process.run(ffmpeg, ['-y', '-loglevel', 'error', '-i', path, '-c', 'copy', out]);
+    if (r.exitCode == 0 && File(out).existsSync() && File(out).lengthSync() > 0) {
+      File(path).deleteSync();
+      return out;
     }
-    return path;
+  } catch (_) {
+    // ffmpeg not installed: keep .ts
   }
+  return path;
 }
 
 class _Speed {

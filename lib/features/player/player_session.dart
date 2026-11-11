@@ -36,6 +36,7 @@ class PlayerSession extends ChangeNotifier {
     required this.settings,
     required this.supportDir,
     required this.loadEpisodes,
+    this.headless = false,
   }) {
     player = Player(
       configuration: PlayerConfiguration(
@@ -44,14 +45,7 @@ class PlayerSession extends ChangeNotifier {
         bufferSize: 64 * 1024 * 1024,
       ),
     );
-    controller = VideoController(
-      player,
-      configuration: VideoControllerConfiguration(
-        // Shaders need the GPU video output; on Android decode must copy
-        // frames back for them to be applied.
-        hwdec: Platform.isAndroid ? 'mediacodec-copy' : null,
-      ),
-    );
+    if (headless) unawaited(_setProp('ao', 'null'));
     _subs.add(player.stream.completed.listen((c) {
       if (c) _onCompleted();
     }));
@@ -77,7 +71,20 @@ class PlayerSession extends ChangeNotifier {
   final Future<List<EpisodeRecord>> Function(String slug) loadEpisodes;
 
   late final Player player;
-  late final VideoController controller;
+
+  /// Created on first use (the widget tree), so tests can run the session
+  /// without a rendering surface.
+  late final VideoController controller = VideoController(
+    player,
+    configuration: VideoControllerConfiguration(
+      // Shaders need the GPU video output; on Android decode must copy
+      // frames back for them to be applied.
+      hwdec: Platform.isAndroid ? 'mediacodec-copy' : null,
+    ),
+  );
+
+  /// Tests: no audio device, no video output.
+  final bool headless;
   final List<StreamSubscription<dynamic>> _subs = [];
   Timer? _ticker;
   Timer? _serverTimer;
