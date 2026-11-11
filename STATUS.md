@@ -30,6 +30,9 @@ diagnostics** and check each step against the live site.
   Run locally with `OOBLECK_PLAYBACK=1 flutter test test/playback_smoke_test.dart test/player_session_test.dart`.
 - ffmpeg remux test (real ffmpeg); OpenSubtitles request/login/download flow against fixtures shaped like the v1 docs.
 
+Note: the `playback` CI job has not yet completed on a GitHub runner (its apt step could not reach Ubuntu's mirrors
+in two attempts). The same tests pass locally with libmpv 0.37 + ffmpeg. The job is non-blocking.
+
 ## Still needs a real device or the live site (cannot be automated here)
 - Live anikoto/megaplay flow, including token expiry mid-playback (player re-signs and reloads on error;
   a stream whose segments need per-request tokens may need a local re-signing proxy)

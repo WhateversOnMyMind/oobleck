@@ -26,6 +26,8 @@ jobs:
       - run: flutter test
 
   playback:
+    # Informational: needs the runner's apt mirrors (libmpv), which are occasionally unreachable.
+    continue-on-error: true
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
