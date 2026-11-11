@@ -15,10 +15,23 @@ String absUrl(String href) {
   return anikotoBase + (href.startsWith('/') ? href : '/$href');
 }
 
+/// Show slug from a show or episode URL. Home cards link to episodes
+/// (`/watch/<slug>/ep-7`, observed 2026-11-12), so the slug is the segment
+/// right after `watch`, not the last one.
 String slugOf(String url) {
   final path = Uri.parse(url).path;
   final segs = path.split('/').where((s) => s.isNotEmpty).toList();
+  final w = segs.indexOf('watch');
+  if (w >= 0 && w + 1 < segs.length) return segs[w + 1];
   return segs.isEmpty ? url : segs.last;
+}
+
+/// Canonical show URL (`https://anikototv.to/watch/<slug>`) for any show or
+/// episode URL on the site.
+String showUrlOf(String url) {
+  final u = Uri.parse(url);
+  if (!u.path.contains('/watch/')) return url;
+  return '$anikotoBase/watch/${slugOf(url)}';
 }
 
 String? _img(Element? scope) {
@@ -46,7 +59,7 @@ String resultHtml(String body) {
 ShowSummary? _card(Element a) {
   final href = a.attributes['href'];
   if (href == null || !href.contains('/watch/')) return null;
-  final url = absUrl(href);
+  final url = showUrlOf(absUrl(href));
   final title = _clean(a.querySelector('.d-title, .name')?.text).isNotEmpty
       ? _clean(a.querySelector('.d-title, .name')?.text)
       : _clean(a.attributes['title'] ?? a.querySelector('img')?.attributes['alt'] ?? a.text);
@@ -125,11 +138,13 @@ ShowDetail parseShow(String page, String url) {
   final title = _clean(doc.querySelector('h1.title, h1.d-title, h1')?.text).isNotEmpty
       ? _clean(doc.querySelector('h1.title, h1.d-title, h1')?.text)
       : _clean(meta('og:title')).replaceAll(RegExp(r'^Watch\s+|\s+(Online|English).*$'), '');
-  final poster = _img(doc.querySelector('.poster, .binfo')) ?? meta('og:image');
-  final synopsis = _clean(doc.querySelector('.synopsis, .desc, .content, .description')?.text)
-          .isNotEmpty
-      ? _clean(doc.querySelector('.synopsis, .desc, .content, .description')?.text)
-      : _clean(meta('og:description'));
+  final poster = _img(doc.querySelector('.binfo .poster, .poster, .binfo')) ?? meta('og:image');
+  // Live page (2026-11-12): `.synopsis > .shorting > .content` plus a "[more]"
+  // toggle, so read `.content` first to keep the toggle text out.
+  final synEl = doc.querySelector('.synopsis .content') ??
+      doc.querySelector('.synopsis, .desc, .content, .description');
+  final synText = _clean(synEl?.text);
+  final synopsis = synText.isNotEmpty ? synText : _clean(meta('og:description'));
   return ShowDetail(
     slug: slugOf(url),
     siteId: id,
@@ -183,4 +198,25 @@ String parseEmbedUrl(String body) {
   final url = r is Map ? r['url'] : (r is String ? r : null);
   if (url is! String || url.isEmpty) throw const FormatException('No embed url in response');
   return url;
+}
+
+/// Intro/outro seconds from `result.skip_data` of `/ajax/server?get=`
+/// (`{"intro":[256,340],"outro":[1348,1430]}`, observed 2026-11-12).
+/// Missing or empty (`[0,0]`) ranges come back as null.
+({SkipRange? intro, SkipRange? outro}) parseEmbedSkips(String body) {
+  SkipRange? range(Object? o) {
+    if (o is List && o.length >= 2 && o[0] is num && o[1] is num) {
+      final r = SkipRange((o[0] as num).toDouble(), (o[1] as num).toDouble());
+      return r.end > r.start ? r : null;
+    }
+    return null;
+  }
+
+  try {
+    final j = jsonDecode(body);
+    final r = j is Map ? j['result'] : null;
+    final skip = r is Map ? r['skip_data'] : null;
+    if (skip is Map) return (intro: range(skip['intro']), outro: range(skip['outro']));
+  } catch (_) {}
+  return (intro: null, outro: null);
 }

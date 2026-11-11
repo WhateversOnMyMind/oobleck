@@ -126,6 +126,21 @@ class StreamSource {
 
   bool get isHls => url.contains('.m3u8');
 
+  /// Returns a copy that uses [intro]/[outro] where this source has none.
+  StreamSource withFallbackSkips(SkipRange? intro, SkipRange? outro) {
+    if ((this.intro != null || intro == null) && (this.outro != null || outro == null)) return this;
+    return StreamSource(
+      url: url,
+      serverName: serverName,
+      type: type,
+      headers: headers,
+      subtitles: subtitles,
+      intro: this.intro ?? intro,
+      outro: this.outro ?? outro,
+      resign: resign,
+    );
+  }
+
   String signed(String u) => resign == null ? u : resign!(u);
 }
 

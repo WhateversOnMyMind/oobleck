@@ -1,9 +1,21 @@
 # Status
 
-Everything in PLAN.md M0 to M7 is implemented. Nothing could be run against the **live anikoto site** from the
-build sandbox (probing it was blocked, and the plan says not to work around that), so the source layer is
-verified only against hand-written `SYNTHETIC` fixtures. First thing to do: run **Settings > Advanced > Source
-diagnostics** and check each step against the live site.
+Everything in PLAN.md M0 to M7 is implemented. The cloud build sandbox could not reach the live site, so the
+first run was built against hand-written `SYNTHETIC` fixtures.
+
+**2026-11-12 (local run):** the live site *is* reachable with plain HTTP from the owner's machine. The source
+chain was checked live up to the decrypted stream URL, real responses are saved in `test/fixtures/anikoto/live/`
+(see its README), and `test/anikoto_live_fixtures_test.dart` runs the parsers and extractors against them.
+- Live chain: search → show page → episode list → server list → embed URL → megaplay embed → `getSources`
+  → AES decrypt with the bundled key → `master.m3u8` URL. **All match PLAN.md.**
+- Fixed: home cards link to episodes (`/watch/<show>/ep-7`), so every card got the slug `ep-7`. Sections
+  collapsed to a few cards, and tapping one opened a non-existent show. Slugs now come from the segment after `/watch/`.
+- Fixed: the synopsis included the "[more]" toggle text.
+- Added: intro/outro from `skip_data` in `/ajax/server?get=` as a fallback when the extractor gives none.
+- Seen live: all four servers (HD-1, HD-2, Vidstream-1, Vidstream-2) are on megaplay.buzz; Vidstream-1 uses a
+  `/videojs/` embed with the same `getSources` endpoint. No vidtube.site embed was seen, and Kiwi was not checked.
+- **Not checked live:** fetching the signed CDN playlist/segments (URL signing, ~90 s token expiry). Verify it by
+  playing an episode in the app; if it fails, **Settings > Advanced > Source diagnostics** shows the step.
 
 ## Done (with tests: `flutter test`, all passing)
 - **M0** Scaffold, lints, CI (`test`, `windows`, `android`, release on `v*` tags), README
@@ -34,8 +46,9 @@ Note: the `playback` CI job has not yet completed on a GitHub runner (its apt st
 in two attempts). The same tests pass locally with libmpv 0.37 + ffmpeg. The job is non-blocking.
 
 ## Still needs a real device or the live site (cannot be automated here)
-- Live anikoto/megaplay flow, including token expiry mid-playback (player re-signs and reloads on error;
-  a stream whose segments need per-request tokens may need a local re-signing proxy)
+- Live stream playback from megaplay's CDN, including token expiry mid-playback (player re-signs and reloads on error;
+  a stream whose segments need per-request tokens may need a local re-signing proxy). Everything before the stream
+  URL was verified live on 2026-11-12
 - Android: foreground service notification, Anime4K with `mediacodec-copy`, Flutter-rendered subtitles
   (libass needs a bundled font on Android, so Android uses Flutter text; ASS styling is desktop-only for now)
 - OpenSubtitles with a real API key (the account-login requirement for downloads is unconfirmed)
@@ -48,4 +61,7 @@ in two attempts). The same tests pass locally with libmpv 0.37 + ffmpeg. The job
 - Anime4K: CC bar sparkle icon
 
 ## Blocked / TODO
-- `TODO(blocked)`: live verification of anikoto (see above); OpenSubtitles needs a user key
+- `TODO(blocked)`: live stream playback (signed CDN URLs) and Kiwi; OpenSubtitles needs a user key
+- Local dev: Flutter 3.47.9 is installed at `C:\Users\PC\flutter` (analyze + test work). A local Windows build
+  also needs Visual Studio with "Desktop development with C++" and Windows Developer Mode (plugin symlinks);
+  CI builds the Windows and Android artifacts

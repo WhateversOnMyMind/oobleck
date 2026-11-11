@@ -78,16 +78,22 @@ class AnikotoSource implements Source {
       parseEmbedUrl(await _get('$anikotoBase/ajax/server', query: {'get': s.linkId}, ajax: true));
 
   Future<StreamSource> resolveServer(ServerOption s) async {
-    final embed = await embedUrl(s);
+    final body = await _get('$anikotoBase/ajax/server', query: {'get': s.linkId}, ajax: true);
+    final embed = parseEmbedUrl(body);
+    final skips = parseEmbedSkips(body);
     final uri = Uri.parse(embed);
+    final StreamSource out;
+    // Megaplay also serves "Vidstream-1" from `/videojs/stream/...` (2026-11-12);
+    // its getSources endpoint is the same.
     if (MegaplayExtractor.handles(uri)) {
-      return megaplay.extract(embed, serverName: s.name, type: s.type);
+      out = await megaplay.extract(embed, serverName: s.name, type: s.type);
+    } else if (VidtubeExtractor.handles(uri)) {
+      out = await vidtube.extract(embed, serverName: s.name, type: s.type);
+    } else {
+      Log.d('anikoto', 'unknown embed host ${uri.host}, skipping');
+      throw SourceException('Unsupported server host');
     }
-    if (VidtubeExtractor.handles(uri)) {
-      return vidtube.extract(embed, serverName: s.name, type: s.type);
-    }
-    Log.d('anikoto', 'unknown embed host ${uri.host}, skipping');
-    throw SourceException('Unsupported server host');
+    return out.withFallbackSkips(skips.intro, skips.outro);
   }
 
   @override

@@ -1,0 +1,16 @@
+{
+    "status": 200,
+    "result": {
+        "url": "https:\/\/megaplay.buzz\/videojs\/stream\/s-2\/181751\/sub",
+        "skip_data": {
+            "intro": [
+                256,
+                340
+            ],
+            "outro": [
+                1348,
+                1430
+            ]
+        }
+    }
+}
