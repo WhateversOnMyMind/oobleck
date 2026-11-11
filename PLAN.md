@@ -1,4 +1,4 @@
-# Koto Player — Build Plan
+# Oobleck — Build Plan
 
 A personal anime player for **Windows desktop** and **Android (APK)**, built from one Flutter codebase.
 Source site: **anikototv.to**. Reference for direction and UI only: `frostnova721/animestream`
@@ -110,7 +110,7 @@ and skipped.
 - Queue: persistent across restarts, pause/resume/cancel, per-item progress and speed, global
   concurrency (default 2 episodes at once), and server fallback when a source fails.
 - **Batch**: on the episode list, choose "Download season", a range (e.g. 1–12) or multi-select; pick sub/dub and quality once.
-- Save location configurable. Defaults: Windows `Videos\Koto\<Show>\<Show> - E01.ts`, Android app-specific Movies dir (no special permission needed).
+- Save location configurable. Defaults: Windows `Videos\Oobleck\<Show>\<Show> - E01.ts`, Android app-specific Movies dir (no special permission needed).
 - Android: run the queue inside a foreground service with a progress notification.
 
 ## Korean subtitle finder
@@ -136,8 +136,8 @@ Goal: from the player or the episode page, tap "Find Korean subs" → see candid
 
 ## CI / builds (`.github/workflows/build.yml`)
 - Triggers: push to any branch, plus `workflow_dispatch`.
-- Job `windows` (windows-latest): `flutter build windows --release` → zip `build/windows/x64/runner/Release` → upload artifact `koto-windows`.
-- Job `android` (ubuntu-latest): Java 17, `flutter build apk --release --split-per-abi` plus a universal APK → upload artifact `koto-android`.
+- Job `windows` (windows-latest): `flutter build windows --release` → zip `build/windows/x64/runner/Release` → upload artifact `oobleck-windows`.
+- Job `android` (ubuntu-latest): Java 17, `flutter build apk --release --split-per-abi` plus a universal APK → upload artifact `oobleck-android`.
   Release signing: use the debug keystore for now (fine for sideloading) and note it in the README.
 - Job `test` (ubuntu): `flutter analyze` + `flutter test`.
 - On tags `v*`: attach the artifacts to a GitHub Release.
