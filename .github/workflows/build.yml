@@ -15,20 +15,27 @@ jobs:
         with:
           channel: stable
           cache: true
-      - run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - name: Install ffmpeg (remux test)
+        run: |
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ffmpeg
       - run: flutter pub get
       - run: flutter analyze
       - run: flutter test
 
   playback:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
           cache: true
-      - run: sudo apt-get update && sudo apt-get install -y libmpv2 ffmpeg
+      - name: Install libmpv and ffmpeg
+        run: |
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends libmpv2 ffmpeg
       - run: flutter pub get
       - name: Playback smoke tests (real libmpv, public HLS stream)
         run: flutter test test/playback_smoke_test.dart test/player_session_test.dart
