@@ -19,6 +19,18 @@ The owner is asleep while this runs and **cannot answer questions**. So:
   downloadable Windows and Android artifacts, and open a pull request into the default branch summarizing
   STATUS.md (if you are working on a separate branch).
 
+## Git identity and attribution (owner's explicit request)
+- Author every commit as the repository owner, not as Claude. Before the first commit, set:
+  `git config user.name "$(git log -1 --format=%an $(git rev-list --max-parents=0 HEAD))"` and
+  `git config user.email "$(git log -1 --format=%ae $(git rev-list --max-parents=0 HEAD))"`
+  (copied from the owner's initial commit). Check with `git log -1 --format='%an <%ae>'` after committing.
+- **No `Co-Authored-By: Claude` trailers, no "Generated with Claude Code" lines**, and no mention of
+  Claude or AI in commit messages, PR titles/bodies, code comments, README or docs.
+  (`.claude/settings.json` already turns off automatic attribution.)
+- Write commit messages like a normal developer would: short imperative subject, optional body.
+- Push to the default branch `main` directly if you are allowed to. If not, use your working branch
+  and open one PR at the end.
+
 ## Hard rules
 - **Never try to get around bot protection.** No Cloudflare/Turnstile/CAPTCHA solving, TLS
   fingerprint impersonation, or proxy rotation. If a site blocks this machine, use fixtures and move on.
