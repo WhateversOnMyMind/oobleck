@@ -62,6 +62,8 @@ in two attempts). The same tests pass locally with libmpv 0.37 + ffmpeg. The job
 
 ## Blocked / TODO
 - `TODO(blocked)`: live stream playback (signed CDN URLs) and Kiwi; OpenSubtitles needs a user key
+- CI is pinned to Flutter 3.47.9. Flutter 3.50 (stable since 2026-11-11) broke `analyze` (material.dart
+  deprecated in favour of `material_ui`) and the Android build (needs AGP 9.1.1+); upgrading is a separate task
 - Local dev: Flutter 3.47.9 is installed at `C:\Users\PC\flutter` (analyze + test work). A local Windows build
   also needs Visual Studio with "Desktop development with C++" and Windows Developer Mode (plugin symlinks);
   CI builds the Windows and Android artifacts
