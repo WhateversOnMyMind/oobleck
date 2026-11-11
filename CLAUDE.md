@@ -21,9 +21,9 @@ The owner is asleep while this runs and **cannot answer questions**. So:
 
 ## Git identity and attribution (owner's explicit request)
 - Author every commit as the repository owner, not as Claude. Before the first commit, set:
-  `git config user.name "$(git log -1 --format=%an $(git rev-list --max-parents=0 HEAD))"` and
-  `git config user.email "$(git log -1 --format=%ae $(git rev-list --max-parents=0 HEAD))"`
-  (copied from the owner's initial commit). Check with `git log -1 --format='%an <%ae>'` after committing.
+  `git config user.name "$(git log -1 --format=%an $(git log -1 --format=%H --grep="^Add build plan$"))"` and
+  `git config user.email "$(git log -1 --format=%ae $(git log -1 --format=%H --grep="^Add build plan$"))"`
+  (copied from the owner's "Add build plan" commit). Check with `git log -1 --format='%an <%ae>'` after committing.
 - **No `Co-Authored-By: Claude` trailers, no "Generated with Claude Code" lines**, and no mention of
   Claude or AI in commit messages, PR titles/bodies, code comments, README or docs.
   (`.claude/settings.json` already turns off automatic attribution.)
