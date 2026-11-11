@@ -52,6 +52,8 @@ dependencies:
   enough_convert: ^1.7.1
   archive: ^4.6.0
   intl: ^0.20.3
+  screen_brightness: ^2.1.11
+  wakelock_plus: ^1.8.2
 
 dev_dependencies:
   flutter_test:

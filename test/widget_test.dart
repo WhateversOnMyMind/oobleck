@@ -1,30 +1,30 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
+import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-import 'package:oobleck/main.dart';
+import 'package:oobleck/app/providers.dart';
+import 'package:oobleck/app/theme.dart';
+import 'package:oobleck/core/storage/app_db.dart';
+import 'package:oobleck/features/library/library_screen.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
-
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
-
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
-
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+  testWidgets('empty library shows a friendly empty state', (tester) async {
+    late AppDb db;
+    late Directory dir;
+    await tester.runAsync(() async {
+      dir = Directory.systemTemp.createTempSync('oobleck_w');
+      db = await AppDb.open(dir.path);
+    });
+    await tester.pumpWidget(ProviderScope(
+      overrides: [dbProvider.overrideWithValue(db), supportDirProvider.overrideWithValue(dir.path)],
+      child: MaterialApp(theme: buildTheme(), home: const Scaffold(body: LibraryScreen())),
+    ));
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.text('Your library is empty'), findsOneWidget);
+    await tester.runAsync(() async {
+      await db.close();
+      dir.deleteSync(recursive: true);
+    });
   });
 }
