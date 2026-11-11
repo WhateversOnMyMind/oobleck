@@ -5,6 +5,33 @@ Source site: **anikototv.to**. Reference for direction and UI only: `frostnova72
 (Flutter). Its anikoto provider works, but its downloads for anikoto are unimplemented and it drops
 every subtitle track except English.
 
+## Non-negotiable UX requirements (from the owner — these override anything below)
+1. **Offline Library of downloaded anime, inside the app.** A "Downloads / Library" tab shows downloaded
+   shows as **poster cards** (cover art, title, number of episodes downloaded, total size). Tapping a show
+   opens its episode list (thumbnail or poster, episode number/title, duration, watched/progress bar);
+   tapping an episode **plays it immediately in the same in-app player**, with its subtitles auto-loaded
+   and works with no internet at all.
+   - Store metadata with each download (show id/title, poster image **cached to disk**, synopsis, episode
+     number/title, subtitle files + languages, source quality) in the app database, so the Library never
+     needs the network.
+   - Manage from the Library: delete episode/show, see storage used, "Download next episodes".
+   - **Never** make the user browse folders or pick files to watch their downloads. **No file/directory
+     pickers** in the normal flow. The only file picker in the app is the optional "Import subtitle
+     file…" action and the optional "change download location" setting.
+2. **Continue watching / resume where you left off (local only for now).**
+   - Save position per episode every ~5 s and on pause/exit/app background, in the local database (no account, no cloud sync yet).
+   - Opening an episode resumes at the saved position (with a small "Resumed at 12:34 · Start over" toast).
+   - Home screen starts with a **"Continue watching"** row: the last episode of each show with a progress
+     bar. One tap resumes. If the episode is finished (>90%), the card points to the next episode instead.
+   - Works for both streamed and downloaded episodes (shared history; downloaded copies are preferred when present).
+   - Episode lists show watched ticks and partial-progress bars.
+3. **Clean, polished UI. No "developer debug" look.** Material 3 dark theme with one accent colour,
+   consistent spacing, real cover art everywhere, smooth transitions, skeleton loaders instead of spinners,
+   friendly empty/error states with a retry button. The player is a proper full-screen player: auto-hiding
+   controls, big centered play/pause, a clean bottom bar (seek, time, CC, quality, speed, Anime4K, server,
+   next episode), and the title at the top. No raw URLs, server IDs or file paths shown to the user anywhere
+   (except in Settings → Advanced → Source diagnostics).
+
 ## Feature goals
 1. Browse, search, show details and episode list (sub/dub, filler marks)
 2. **Ad-free playback**: native player (media_kit / libmpv) plays the raw HLS stream. The site's web player is never shown.
@@ -158,8 +185,8 @@ Goal: from the player or the episode page, tap "Find Korean subs" → see candid
 - **M0** Flutter scaffold (Windows + Android targets), lints, CI workflow green, README
 - **M1** Source layer: anikoto + megaplay + vidtube + Kiwi, with tests and fixtures; diagnostics screen
 - **M2** UI: home, search, show page, episode list
-- **M3** Player with custom controls, server/quality/sub-dub switching, all subtitle tracks, styling, offset, history/resume, aniskip
-- **M4** Downloads: single + batch, queue, Android foreground service, offline playback
+- **M3** Player with custom controls, server/quality/sub-dub switching, all subtitle tracks, styling, offset, aniskip; **resume position + "Continue watching" row + watched/progress marks** (local DB)
+- **M4** Downloads: single + batch, queue, Android foreground service; **offline Library tab (poster grid → episodes → one tap plays in-app, fully offline, subtitles auto-loaded)**
 - **M5** Subtitles: manual import, SMI, Korean finder (Anissia, then OpenSubtitles)
 - **M6** Anime4K presets
 - **M7** Polish: settings, error states, empty states, icons, README with screenshots/instructions

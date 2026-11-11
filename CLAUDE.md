@@ -13,6 +13,9 @@ The owner is asleep while this runs and **cannot answer questions**. So:
 - Keep CI green. If the build breaks, fixing it comes before new features.
 - **Commit and push after every meaningful step**, at least once per milestone, with clear messages.
   Pushed work survives if the session ends early.
+- **Sessions can die without warning** (a previous run hit an API error before pushing anything).
+  On start, read `STATUS.md` (if it exists) and the git log, and **continue where the last run stopped**.
+  Don't redo finished work. Push within the first 30 minutes, then at least every hour.
 - Keep `STATUS.md` current: what's done, what's partial, what's blocked, and how to test each feature.
   This is the first thing the owner reads in the morning.
 - When everything is done (or you run out of time), make sure the last push has a green CI build with
