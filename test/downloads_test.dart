@@ -109,7 +109,9 @@ void main() {
     expect(rec.filePath, contains('Demo Show - E01'));
     expect(rec.quality, '720p');
     expect(db.show('demo')!.synopsis, 'syn');
-    // survives a restart
+    // survives a restart (stop the first manager so it can't touch the closed box)
+    mgr.dispose();
+    await Future<void>.delayed(const Duration(milliseconds: 300));
     await db.close();
     db = await AppDb.open('${tmp.path}/db');
     expect(db.download(key)!.isDone, isTrue);
