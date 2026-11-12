@@ -14,8 +14,10 @@ chain was checked live up to the decrypted stream URL, real responses are saved 
 - Added: intro/outro from `skip_data` in `/ajax/server?get=` as a fallback when the extractor gives none.
 - Seen live: all four servers (HD-1, HD-2, Vidstream-1, Vidstream-2) are on megaplay.buzz; Vidstream-1 uses a
   `/videojs/` embed with the same `getSources` endpoint. No vidtube.site embed was seen, and Kiwi was not checked.
-- **Not checked live:** fetching the signed CDN playlist/segments (URL signing, ~90 s token expiry). Verify it by
-  playing an episode in the app; if it fails, **Settings > Advanced > Source diagnostics** shows the step.
+- **Verified on Windows (owner's PC, CI build of `4c915c2`):** streaming playback from megaplay works, and Anime4K
+  runs (the player reads mpv's `vo-passes` after a preset is picked and reports it in a toast).
+- Fixed: re-signing an already signed URL left a literal `$1` in the path (`master.m3u8$1?token=`), so every stream
+  failed with 404. Found from the in-app log.
 
 ## Done (with tests: `flutter test`, all passing)
 - **M0** Scaffold, lints, CI (`test`, `windows`, `android`, release on `v*` tags), README
@@ -46,9 +48,8 @@ Note: the `playback` CI job has not yet completed on a GitHub runner (its apt st
 in two attempts). The same tests pass locally with libmpv 0.37 + ffmpeg. The job is non-blocking.
 
 ## Still needs a real device or the live site (cannot be automated here)
-- Live stream playback from megaplay's CDN, including token expiry mid-playback (player re-signs and reloads on error;
-  a stream whose segments need per-request tokens may need a local re-signing proxy). Everything before the stream
-  URL was verified live on 2026-11-12
+- Long sessions on the live CDN: playback works on Windows; if a stream ever stops mid-episode with HTTP 403 in the
+  log, segments need per-request tokens and the player needs a local re-signing proxy
 - Android: foreground service notification, Anime4K with `mediacodec-copy`, Flutter-rendered subtitles
   (libass needs a bundled font on Android, so Android uses Flutter text; ASS styling is desktop-only for now)
 - OpenSubtitles with a real API key (the account-login requirement for downloads is unconfirmed)
@@ -61,7 +62,7 @@ in two attempts). The same tests pass locally with libmpv 0.37 + ffmpeg. The job
 - Anime4K: CC bar sparkle icon
 
 ## Blocked / TODO
-- `TODO(blocked)`: live stream playback (signed CDN URLs) and Kiwi; OpenSubtitles needs a user key
+- `TODO(blocked)`: Kiwi not checked live; OpenSubtitles needs a user key
 - CI is pinned to Flutter 3.47.9. Flutter 3.50 (stable since 2026-11-11) broke `analyze` (material.dart
   deprecated in favour of `material_ui`) and the Android build (needs AGP 9.1.1+); upgrading is a separate task
 - Local dev: Flutter 3.47.9 is installed at `C:\Users\PC\flutter` (analyze + test work). A local Windows build
