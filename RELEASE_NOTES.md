@@ -1,5 +1,10 @@
 Oobleck is a personal anime player for Windows, Android and iOS.
 
+## New in 1.0.1
+- Fixed: resuming an episode said "Resumed at 13:46" but played from the start. The player now jumps to the saved
+  spot once the stream is ready, checks it got there, and only then shows the message
+- 수정: 이어보기 메시지가 나오는데 처음부터 재생되던 문제를 고쳤어요
+
 ## What's in it
 - Streaming with server fallback, resume, auto-next and skip intro / outro
 - Downloads for offline viewing (the **Downloaded** tab)
