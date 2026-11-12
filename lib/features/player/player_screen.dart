@@ -15,6 +15,7 @@ import '../subtitles/korean_sheet.dart';
 import 'play_request.dart';
 import 'player_controls.dart';
 import 'player_session.dart';
+import 'video_fit.dart';
 
 class PlayerScreen extends ConsumerStatefulWidget {
   const PlayerScreen({super.key, required this.request});
@@ -106,31 +107,40 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> with WidgetsBinding
     return PopScope(
       child: Scaffold(
         backgroundColor: Colors.black,
-        body: Video(
-            controller: session.controller,
-            fill: Colors.black,
-            controls: (state) => PlayerControls(
-              session: session,
-              videoState: state,
-              onImportSubtitle: _importSubtitle,
-              onFindKorean: _findKorean,
-              onClose: () => Navigator.of(context).maybePop(),
-            ),
-            // Android renders text subtitles in Flutter (system fonts cover CJK);
-            // desktop uses mpv/libass so ASS styling is kept.
-            subtitleViewConfiguration: SubtitleViewConfiguration(
-              visible: Platform.isAndroid,
-              style: TextStyle(
-                fontSize: s.subSize * 0.5,
-                color: Color(int.parse('FF${s.subColor}', radix: 16)),
-                backgroundColor: s.subBackground ? const Color(0xB0000000) : null,
-                shadows: s.subOutline > 0
-                    ? const [Shadow(blurRadius: 3, color: Colors.black), Shadow(blurRadius: 6, color: Colors.black)]
-                    : null,
-                fontWeight: FontWeight.w600,
+        body: LayoutBuilder(
+          builder: (context, box) => ValueListenableBuilder<VideoFit>(
+            valueListenable: session.videoFit,
+            builder: (context, fit, _) => Video(
+              controller: session.controller,
+              fill: Colors.black,
+              fit: fit.boxFit,
+              controls: (state) => PlayerControls(
+                session: session,
+                videoState: state,
+                onImportSubtitle: _importSubtitle,
+                onFindKorean: _findKorean,
+                onClose: () => Navigator.of(context).maybePop(),
               ),
-              padding: EdgeInsets.fromLTRB(24, 0, 24, 28 + (100 - s.subPos) * 2),
+              // Android renders text subtitles in Flutter (system fonts cover CJK);
+              // desktop uses mpv/libass so ASS styling is kept. Sized from the
+              // screen height so 4:3 shows get the same size as 16:9 ones.
+              subtitleViewConfiguration: SubtitleViewConfiguration(
+                visible: Platform.isAndroid,
+                textScaler: TextScaler.linear(subtitleTextScale(box.biggest)),
+                style: TextStyle(
+                  height: 1.3,
+                  fontSize: s.subSize,
+                  color: Color(int.parse('FF${s.subColor}', radix: 16)),
+                  backgroundColor: s.subBackground ? const Color(0xB0000000) : null,
+                  shadows: s.subOutline > 0
+                      ? const [Shadow(blurRadius: 3, color: Colors.black), Shadow(blurRadius: 6, color: Colors.black)]
+                      : null,
+                  fontWeight: FontWeight.w600,
+                ),
+                padding: EdgeInsets.fromLTRB(24, 0, 24, box.biggest.height * 0.05 + (100 - s.subPos) * 2),
+              ),
             ),
+          ),
         ),
       ),
     );

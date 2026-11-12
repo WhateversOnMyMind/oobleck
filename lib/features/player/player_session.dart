@@ -17,6 +17,7 @@ import '../../core/subtitles/korean_lookup.dart';
 import '../../core/subtitles/subtitle_import.dart';
 import '../../core/storage/records.dart';
 import 'play_request.dart';
+import 'video_fit.dart';
 
 class QualityOption {
   QualityOption(this.label, this.url);
@@ -113,6 +114,9 @@ class PlayerSession extends ChangeNotifier {
   List<SubtitleTrackInfo> subtitleTracks = [];
   SubtitleTrackInfo? subtitle;
   double subtitleOffset = 0;
+
+  /// Fit / zoom / stretch, remembered per show (`fit:<slug>`).
+  final ValueNotifier<VideoFit> videoFit = ValueNotifier(VideoFit.fit);
   SkipRange? intro;
   SkipRange? outro;
   String? nextEpisode;
@@ -151,6 +155,7 @@ class PlayerSession extends ChangeNotifier {
     try {
       unawaited(_computeNext());
       subtitleOffset = (db.misc<num>('subOffset:${req.slug}') ?? 0).toDouble();
+      videoFit.value = VideoFit.parse(db.misc<String>('fit:${req.slug}'));
       final saved = db.historyFor(req.slug, req.episode);
       final startAt = resume && saved != null && saved.isPartial ? Duration(milliseconds: saved.positionMs) : Duration.zero;
 
@@ -360,6 +365,13 @@ class PlayerSession extends ChangeNotifier {
     notifyListeners();
     await _applyOffset();
     await db.setMisc('subOffset:${request.slug}', subtitleOffset);
+  }
+
+  Future<VideoFit> cycleVideoFit() async {
+    final next = videoFit.value.next;
+    videoFit.value = next;
+    await db.setMisc('fit:${request.slug}', next.name);
+    return next;
   }
 
   Future<void> setSubtitleOffset(double seconds) => setSubtitleOffsetMs((seconds * 1000).round());
@@ -689,6 +701,7 @@ class PlayerSession extends ChangeNotifier {
       unawaited(s.cancel());
     }
     unawaited(player.dispose());
+    videoFit.dispose();
     super.dispose();
   }
 }

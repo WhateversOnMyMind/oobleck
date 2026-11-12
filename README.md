@@ -46,7 +46,7 @@ overridden there without a rebuild.
 
 ## Keyboard shortcuts (desktop player)
 Space/K play, ←/→ ±5 s, J/L ±10 s, ↑/↓ volume, M mute, F fullscreen, N next, C cycle subtitles,
-[ / ] speed, G/H subtitle sync −/+0.1 s, Esc back.
+[ / ] speed, G/H subtitle sync −/+0.1 s (Shift: 1 s), Z picture fit / zoom / stretch, Esc back.
 
 ## Licences
 Anime4K shaders (MIT, bloc97/Anime4K) are bundled in `assets/shaders/anime4k/` with their licence.

@@ -40,6 +40,9 @@ chain was checked live up to the decrypted stream URL, real responses are saved 
   attachment importer (direct, zip, Tistory-style links, Google Drive), browser + file fallback, OpenSubtitles (optional)
 - **M6** Anime4K: bundled shaders, presets A/B/C Fast and HQ (chains verified against the repo)
 - **M7** Settings, empty/error states, README
+- Player picture mode **Fit / Zoom to fill / Stretch** (button on the control bar, key Z), saved per show, for 4:3 shows such as
+  Evangelion (1440x1080). Android subtitles are now sized from the screen height (same rule as mpv on desktop) instead of
+  media_kit's sqrt(area/1080p), which made them ~10 dp on phones
 
 ## Verified automatically (beyond unit tests)
 - `playback` CI job (real libmpv): plays a public HLS stream, seeks, changes speed, accepts the subtitle and Anime4K

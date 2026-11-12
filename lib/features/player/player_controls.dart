@@ -13,6 +13,7 @@ import '../../core/models.dart';
 import '../../core/player/anime4k.dart';
 import '../../ui/widgets.dart';
 import 'player_session.dart';
+import 'video_fit.dart';
 
 /// Our own full-screen controls: auto-hiding overlay, big centre play/pause,
 /// clean bottom bar, gestures on touch, keyboard shortcuts on desktop.
@@ -182,6 +183,8 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
       } else {
         widget.onClose();
       }
+    } else if (k == LogicalKeyboardKey.keyZ) {
+      unawaited(_cycleFit());
     } else if (k == LogicalKeyboardKey.keyN) {
       unawaited(s.playNext());
     } else if (k == LogicalKeyboardKey.keyC) {
@@ -434,6 +437,10 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
               _barButton(Icons.auto_awesome_rounded, 'Anime4K', _anime4kMenu, active: s.anime4kPreset != 'off'),
               if (s.servers.length > 1 || s.current != null) _barButton(Icons.dns_rounded, 'Server', _serverMenu, label: _wide ? s.current?.serverName : null),
               const Spacer(),
+              ValueListenableBuilder<VideoFit>(
+                valueListenable: s.videoFit,
+                builder: (context, fit, _) => _barButton(fit.icon, 'Picture: ${fit.label} (Z)', _cycleFit, active: fit != VideoFit.fit),
+              ),
               if (s.nextEpisode != null) _barButton(Icons.skip_next_rounded, 'Next episode', () => unawaited(s.playNext()), label: _wide ? 'Next' : null),
               if (!_mobile) _barButton(widget.videoState.isFullscreen() ? Icons.fullscreen_exit_rounded : Icons.fullscreen_rounded, 'Fullscreen', () => unawaited(_toggleFullscreen())),
             ]),
@@ -441,6 +448,11 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
         ),
       ),
     ]);
+  }
+
+  Future<void> _cycleFit() async {
+    final f = await widget.session.cycleVideoFit();
+    _showHud(f.icon, f.label);
   }
 
   Widget _roundButton(IconData icon, double size, VoidCallback onTap, String tip) => IconButton(
