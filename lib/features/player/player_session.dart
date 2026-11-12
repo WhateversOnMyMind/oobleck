@@ -43,8 +43,11 @@ class PlayerSession extends ChangeNotifier {
         title: 'Oobleck',
         libass: !Platform.isAndroid,
         bufferSize: 64 * 1024 * 1024,
+        // Warnings include shader compile errors (Anime4K), which mpv otherwise drops silently.
+        logLevel: MPVLogLevel.warn,
       ),
     );
+    _subs.add(player.stream.log.listen((l) => Log.d('mpv', '${l.prefix}: ${l.text.trim()}')));
     if (headless) unawaited(_setProp('ao', 'null'));
     _subs.add(player.stream.completed.listen((c) {
       if (c) _onCompleted();
@@ -337,6 +340,16 @@ class PlayerSession extends ChangeNotifier {
 
   void refreshSubtitleStyle() => _applySubtitleStyle();
 
+  Future<String?> _getProp(String name) async {
+    try {
+      final platform = player.platform;
+      if (platform != null) return await (platform as dynamic).getProperty(name) as String;
+    } catch (e) {
+      Log.d('player', 'mpv get $name failed: $e');
+    }
+    return null;
+  }
+
   Future<void> _setProp(String name, String value) async {
     try {
       final platform = player.platform;
@@ -537,12 +550,32 @@ class PlayerSession extends ChangeNotifier {
             await _setProp('hwdec', 'mediacodec-copy');
           }
           await _setProp('glsl-shaders', Anime4K.shaderList(preset, dir));
+          unawaited(_verifyAnime4K(preset));
         }
       }
     } catch (e) {
       Log.d('player', 'anime4k failed: $e');
     }
     notifyListeners();
+  }
+
+  /// Confirms the shaders actually run by reading mpv's `vo-passes` (the render
+  /// passes of recent frames; user shaders appear under their `//!DESC` names,
+  /// "Anime4K-v4.0-..."). Reports the result in a toast and the log.
+  Future<void> _verifyAnime4K(String preset) async {
+    // Give mpv a few rendered frames with the new shaders.
+    await Future<void>.delayed(const Duration(seconds: 3));
+    if (_disposed || anime4kPreset != preset) return;
+    final passes = await _getProp('vo-passes');
+    final shaders = await _getProp('glsl-shaders');
+    Log.d('player', 'anime4k: glsl-shaders=$shaders');
+    final result = Anime4K.checkPasses(passes);
+    Log.d('player', 'anime4k: ${result.detail}');
+    if (result.running == true) {
+      showToast('${Anime4K.label(preset)} is running (${result.count} shader passes)');
+    } else if (result.running == false) {
+      showToast("Anime4K didn't start on this device. See Settings > Advanced > Source diagnostics.");
+    }
   }
 
   // ---- misc ------------------------------------------------------------------------------------

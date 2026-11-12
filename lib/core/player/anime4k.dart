@@ -68,6 +68,20 @@ class Anime4K {
     return dir.path;
   }
 
+  /// Reads mpv's `vo-passes` property text and counts Anime4K passes (their
+  /// `//!DESC` names start with "Anime4K"). `running` is null when mpv did not
+  /// report any passes at all (nothing rendered yet, or the property is not
+  /// supported by the video output), so the result is unknown.
+  static ({bool? running, int count, String detail}) checkPasses(String? voPasses) {
+    if (voPasses == null || voPasses.trim().isEmpty || !voPasses.contains('desc')) {
+      return (running: null, count: 0, detail: 'could not confirm: mpv reported no render passes');
+    }
+    final count = RegExp(r'"desc"\s*:\s*"Anime4K', caseSensitive: false).allMatches(voPasses).length;
+    return count > 0
+        ? (running: true, count: count, detail: 'running, $count shader passes per frame')
+        : (running: false, count: 0, detail: 'NOT running: frames render without Anime4K passes (check [mpv] warnings)');
+  }
+
   /// Whether every file of [id] is present in [dir].
   static bool available(String id, String dir) => chain(id).every((f) => File(p.join(dir, f)).existsSync());
 }
