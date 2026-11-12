@@ -8,6 +8,7 @@ import 'package:oobleck/core/sources/anikoto/anikoto_parsers.dart';
 import 'package:oobleck/core/sources/anikoto/anikoto_source.dart';
 import 'package:oobleck/core/sources/extractors/megaplay.dart';
 import 'package:oobleck/core/sources/extractors/megaplay_keys.dart';
+import 'package:oobleck/core/sources/extractors/vidtube.dart';
 
 import 'helpers/fixture_adapter.dart';
 
@@ -83,8 +84,22 @@ void main() {
           '${1700000090}|0123456789abcdef0123456789abcdef/fedcba9876543210fedcba9876543210');
       expect(parts[1].length, 43); // sha256, unpadded
       expect(m.signUrl(url), signed);
-      // re-signing replaces the token instead of stacking
-      expect('token='.allMatches(m.signUrl(signed)).length, 1);
+      // re-signing replaces the token instead of stacking, and leaves the path alone
+      final again = m.signUrl(signed);
+      expect('token='.allMatches(again).length, 1);
+      expect(again, signed);
+      expect(again, startsWith('$url?token='));
+      expect(again, isNot(contains(r'$')));
+    });
+
+    test('re-signing keeps other query parameters', () {
+      final m = make();
+      const url = 'https://cdn.example/0123456789abcdef0123456789abcdef/fedcba9876543210fedcba9876543210/seg.ts?a=1';
+      final once = m.signUrl(url);
+      expect(once, startsWith('$url&token='));
+      final twice = m.signUrl(once.replaceFirst('?a=1&', '?a=1&b=2&'));
+      expect(twice, startsWith('https://cdn.example/0123456789abcdef0123456789abcdef/fedcba9876543210/seg.ts?a=1&b=2&token='.replaceFirst('fedcba9876543210/seg', 'fedcba9876543210fedcba9876543210/seg')));
+      expect('token='.allMatches(twice).length, 1);
     });
 
     test('urls without hex pair are untouched', () {
@@ -121,6 +136,21 @@ void main() {
           serverName: 'HD-2', type: AudioType.sub);
       expect(s.url, 'https://cdn.example/plain/master.m3u8');
       expect(s.subtitles.single.language, 'ko');
+    });
+
+    test('vidtube decodes megaplay-style enc payloads', () async {
+      final m = make();
+      final encBody = jsonEncode({
+        'enc': m.encrypt(jsonEncode({'file': 'https://cdn.example/vt/master.m3u8'})),
+        'tracks': <Object>[],
+      });
+      final a = FixtureAdapter({
+        'vidtube.site/stream/getSourcesNew': encBody,
+        'vidtube.site/stream/s-2': f('megaplay_embed.html'),
+      });
+      final s = await VidtubeExtractor(buildDio(adapter: a), m)
+          .extract('https://vidtube.site/stream/s-2/555/sub', serverName: 'VidPlay', type: AudioType.sub);
+      expect(s.url, 'https://cdn.example/vt/master.m3u8');
     });
 
     test('key refresh from script', () {

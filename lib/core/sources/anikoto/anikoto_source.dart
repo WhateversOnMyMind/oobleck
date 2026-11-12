@@ -19,7 +19,7 @@ class AnikotoSource implements Source {
       : dio = dio ?? buildDio(),
         keys = keys ?? MegaplayKeys() {
     megaplay = MegaplayExtractor(this.dio, this.keys, clock: clock);
-    vidtube = VidtubeExtractor(this.dio);
+    vidtube = VidtubeExtractor(this.dio, megaplay);
     kiwi = KiwiExtractor(this.dio, clock: clock);
   }
 

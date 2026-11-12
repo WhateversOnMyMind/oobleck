@@ -5,6 +5,7 @@ import '../../app/providers.dart';
 import '../../core/log.dart';
 import '../../core/models.dart';
 import '../../core/sources/anikoto/anikoto_source.dart';
+import '../../core/sources/extractors/megaplay_keys.dart';
 
 /// Settings > Advanced > Source diagnostics. Runs the whole source chain for a
 /// typed title and prints each step's raw result (the only place raw URLs and
@@ -19,6 +20,7 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
   final _title = TextEditingController(text: 'black clover');
   final List<String> _out = [];
   bool _running = false;
+  String? _lastEmbed;
 
   void _add(String s) => setState(() => _out.add(s));
 
@@ -50,6 +52,7 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
         try {
           final embed = await src.embedUrl(s);
           _add('   ${s.name}: embed $embed');
+          if (Uri.parse(embed).host.contains('megaplay')) _lastEmbed ??= embed;
           final st = await src.resolveServer(s);
           _add('   ${s.name}: stream ${st.url}');
           _add('   ${s.name}: ${st.subtitles.length} subtitle tracks: ${st.subtitles.map((t) => t.label).join(', ')}');
@@ -69,7 +72,7 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
     final src = ref.read(sourceProvider);
     if (src is! AnikotoSource) return;
     _add('Refreshing Megaplay keys from the player script…');
-    final ok = await src.keys.refresh(src.dio);
+    final ok = await src.keys.refresh(src.dio, embedUrl: _lastEmbed ?? MegaplayKeys.sampleEmbed);
     _add(ok ? 'Keys updated for this session.' : 'No change (kept current keys).');
   }
 

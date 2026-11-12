@@ -47,13 +47,13 @@ class MegaplayExtractor {
                 headers: {'X-Requested-With': 'XMLHttpRequest', 'Referer': embedUrl},
                 responseType: ResponseType.plain));
         data = jsonDecode(r.data ?? '{}') as Map<String, dynamic>;
-        if (_fileOf(data) != null) break;
+        if (fileOf(data) != null) break;
       } catch (e) {
         lastError = e;
         Log.d('megaplay', '$ep failed: $e');
       }
     }
-    final file = data == null ? null : _fileOf(data);
+    final file = data == null ? null : fileOf(data);
     if (file == null) throw FormatException('megaplay: no stream file ($lastError)');
 
     return StreamSource(
@@ -68,7 +68,7 @@ class MegaplayExtractor {
     );
   }
 
-  String? _fileOf(Map<String, dynamic> data) {
+  String? fileOf(Map<String, dynamic> data) {
     final sources = data['sources'];
     if (sources is Map && sources['file'] is String && (sources['file'] as String).isNotEmpty) {
       return sources['file'] as String;
@@ -145,7 +145,15 @@ class MegaplayExtractor {
     final mac = Hmac(sha256, utf8.encode(keys.tokenKey)).convert(utf8.encode(payload)).bytes;
     String b64(List<int> b) => base64Url.encode(b).replaceAll('=', '');
     final token = '${b64(utf8.encode(payload))}.${b64(mac)}';
-    final clean = url.replaceAll(RegExp(r'([?&])token=[^&]*&?'), r'$1').replaceAll(RegExp(r'[?&]$'), '');
-    return '$clean${clean.contains('?') ? '&' : '?'}token=$token';
+    // Drop any previous token (the player re-signs URLs the extractor already
+    // signed). Rebuild the query instead of regex-replacing: Dart's
+    // replaceAll does not expand `$1`, which once left a literal "$1" in the path.
+    final u = Uri.parse(url);
+    final kept = u.query
+        .split('&')
+        .where((p) => p.isNotEmpty && !p.startsWith('token='))
+        .join('&');
+    final base = url.substring(0, url.length - (u.hasQuery ? u.query.length + 1 : 0) - (u.hasFragment ? u.fragment.length + 1 : 0));
+    return kept.isEmpty ? '$base?token=$token' : '$base?$kept&token=$token';
   }
 }

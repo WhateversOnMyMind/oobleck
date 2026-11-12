@@ -20,6 +20,9 @@ class MegaplayKeys {
   static const String defaultIv = r"W0;27ToaUpl_P%'c";
   static const String defaultTokenKey = r'MpCdnT0k3n!9f2K#xQ7vL5mR8wN1pY4s';
 
+  /// A known embed page that loads the player script (observed 2026-11-12).
+  static const String sampleEmbed = 'https://megaplay.buzz/stream/s-2/181751/sub';
+
   String aesKey;
   String iv;
   String tokenKey;

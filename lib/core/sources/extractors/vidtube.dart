@@ -8,8 +8,11 @@ import 'megaplay.dart';
 
 /// Resolves vidtube.site embeds (observed 2026-11-11, see PLAN.md).
 class VidtubeExtractor {
-  VidtubeExtractor(this.dio);
+  VidtubeExtractor(this.dio, [this.megaplay]);
   final Dio dio;
+
+  /// Used to decode `enc` payloads, which vidtube may share with megaplay.
+  final MegaplayExtractor? megaplay;
 
   static bool handles(Uri embed) => embed.host.contains('vidtube');
 
@@ -28,8 +31,11 @@ class VidtubeExtractor {
             responseType: ResponseType.plain));
     final data = jsonDecode(r.data ?? '{}') as Map<String, dynamic>;
     final sources = data['sources'];
-    final file = sources is Map ? sources['file'] : (sources is List && sources.isNotEmpty ? (sources.first as Map)['file'] : null);
-    if (file is! String || file.isEmpty) throw const FormatException('vidtube: no stream file');
+    Object? file = sources is Map ? sources['file'] : (sources is List && sources.isNotEmpty ? (sources.first as Map)['file'] : null);
+    if ((file is! String || file.isEmpty) && megaplay != null) file = megaplay!.fileOf(data);
+    if (file is! String || file.isEmpty) {
+      throw FormatException('vidtube: no stream file (response keys: ${data.keys.join(', ')})');
+    }
     return StreamSource(
       url: file,
       serverName: serverName,
