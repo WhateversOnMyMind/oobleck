@@ -1,0 +1,11 @@
+# Cloudflare Worker for the optional watch-history sync. See server/README.md.
+name = "oobleck-sync"
+main = "src/index.js"
+compatibility_date = "2026-11-01"
+workers_dev = true
+
+[[d1_databases]]
+binding = "DB"
+database_name = "oobleck-sync"
+# Printed by `npx wrangler@4 d1 create oobleck-sync` (an identifier, not a secret).
+database_id = "00000000-0000-0000-0000-000000000000"

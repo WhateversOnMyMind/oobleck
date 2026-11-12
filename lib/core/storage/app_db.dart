@@ -82,11 +82,34 @@ class AppDb {
   Future<void> markWatched(String slug, String episode, {int durationMs = 1}) =>
       saveProgress(slug, episode, durationMs, durationMs);
 
-  Future<void> clearHistory() => _history.clear();
+  Future<void> clearHistory({int? now}) async {
+    await _history.clear();
+    await _queueSyncDeletion('*', now);
+  }
 
-  Future<void> clearShowHistory(String slug) async {
+  Future<void> clearShowHistory(String slug, {int? now}) async {
     final keys = _history.keys.where((k) => (k as String).startsWith('$slug|')).toList();
     await _history.deleteAll(keys);
+    await _queueSyncDeletion(slug, now);
+  }
+
+  /// Writes history that came from the sync server (keeps its `updatedAt`).
+  Future<void> putHistory(Iterable<HistoryEntry> entries) =>
+      _history.putAll({for (final e in entries) e.key: e.toMap()});
+
+  Future<void> deleteHistory(Iterable<String> keys) => _history.deleteAll(keys);
+
+  /// When signed in to sync, a clear is sent to the server so other devices
+  /// drop the same entries (see `core/sync`).
+  static const syncTokenKey = 'sync:token';
+  static const syncPendingDeletionsKey = 'sync:pendingDeletions';
+
+  Future<void> _queueSyncDeletion(String slug, int? now) async {
+    if (_misc.get(syncTokenKey) == null) return;
+    final at = now ?? DateTime.now().millisecondsSinceEpoch;
+    final list = [...((_misc.get(syncPendingDeletionsKey) as List?) ?? const [])];
+    list.add({'slug': slug, 'at': at});
+    await _misc.put(syncPendingDeletionsKey, list);
   }
 
   Stream<List<HistoryEntry>> watchHistory() => _watch(_history, allHistory);

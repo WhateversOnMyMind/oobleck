@@ -12,6 +12,7 @@ import '../../app/providers.dart';
 import '../../core/storage/records.dart';
 import '../../core/subtitles/subtitle_import.dart';
 import '../subtitles/korean_sheet.dart';
+import '../sync/sync_controller.dart';
 import 'play_request.dart';
 import 'player_controls.dart';
 import 'player_session.dart';
@@ -27,6 +28,7 @@ class PlayerScreen extends ConsumerStatefulWidget {
 
 class _PlayerScreenState extends ConsumerState<PlayerScreen> with WidgetsBindingObserver {
   late final PlayerSession session;
+  late final SyncController _sync;
   bool get _mobile => Platform.isAndroid || Platform.isIOS;
 
   @override
@@ -34,6 +36,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> with WidgetsBinding
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     final db = ref.read(dbProvider);
+    _sync = ref.read(syncProvider.notifier);
     session = PlayerSession(
       request: widget.request,
       db: db,
@@ -68,6 +71,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> with WidgetsBinding
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     session.dispose();
+    _sync.syncSoon(); // share the progress just saved
     WakelockPlus.disable();
     if (_mobile) {
       SystemChrome.setPreferredOrientations(DeviceOrientation.values);

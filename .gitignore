@@ -46,3 +46,8 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
+
+# Sync server (Cloudflare Worker)
+server/node_modules/
+server/.wrangler/
+server/.dev.vars

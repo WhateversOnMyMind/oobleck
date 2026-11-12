@@ -43,6 +43,11 @@ chain was checked live up to the decrypted stream URL, real responses are saved 
 - Player picture mode **Fit / Zoom to fill / Stretch** (button on the control bar, key Z), saved per show, for 4:3 shows such as
   Evangelion (1440x1080). Android subtitles are now sized from the screen height (same rule as mpv on desktop) instead of
   media_kit's sqrt(area/1080p), which made them ~10 dp on phones
+- **Watch-history sync** (optional): Settings → Sync → Sign in / Create account (user ID + password only). Syncs on launch,
+  when the app comes back, after the player closes, every 10 min and on "Sync now"; newest progress per episode wins,
+  "Clear watch history" reaches other devices. Server: Cloudflare Worker + D1 in `server/` (tests: `node --test`, and
+  `test/sync_test.dart` runs the app against the real Worker code). **Not deployed yet**: needs the owner's free
+  Cloudflare account, see `server/README.md`
 
 ## Verified automatically (beyond unit tests)
 - `playback` CI job (real libmpv): plays a public HLS stream, seeks, changes speed, accepts the subtitle and Anime4K

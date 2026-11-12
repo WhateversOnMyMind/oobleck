@@ -44,6 +44,11 @@ Everything else talks to the `Source` interface. If the site changes, use
 **Settings > Advanced > Source diagnostics** to see each step's raw result. Megaplay keys can be
 overridden there without a rebuild.
 
+## Watch-history sync (optional)
+Settings → Sync signs in with a user ID and password and keeps resume positions and Continue watching the same on
+every device. The server is a small Cloudflare Worker + D1 database you deploy once on the free plan:
+see [server/README.md](server/README.md).
+
 ## Keyboard shortcuts (desktop player)
 Space/K play, ←/→ ±5 s, J/L ±10 s, ↑/↓ volume, M mute, F fullscreen, N next, C cycle subtitles,
 [ / ] speed, G/H subtitle sync −/+0.1 s (Shift: 1 s), Z picture fit / zoom / stretch, Esc back.

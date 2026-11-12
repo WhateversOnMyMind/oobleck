@@ -22,9 +22,22 @@ jobs:
         run: |
           sudo timeout 240 apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 update
           sudo DEBIAN_FRONTEND=noninteractive timeout 400 apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=20 install -y --no-install-recommends ffmpeg
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22 # sync end-to-end test runs the Worker on node:sqlite
       - run: flutter pub get
       - run: flutter analyze
       - run: flutter test
+
+  sync-server:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node --test test/*.test.js
+        working-directory: server
 
   playback:
     # Informational: needs the runner's apt mirrors (libmpv), which are occasionally unreachable.
@@ -59,7 +72,7 @@ jobs:
           flutter-version: 3.47.9
           cache: true
       - run: flutter pub get
-      - run: flutter build windows --release
+      - run: flutter build windows --release --dart-define=OOBLECK_SYNC_URL=${{ vars.OOBLECK_SYNC_URL }}
       - name: Zip
         shell: pwsh
         run: Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath oobleck-windows.zip
@@ -94,8 +107,8 @@ jobs:
           else
             echo "::warning::ANDROID_KEYSTORE_BASE64/ANDROID_KEYSTORE_PASSWORD not set: APKs use a throwaway debug key and cannot update an existing install."
           fi
-      - run: flutter build apk --release --split-per-abi --build-number=${{ github.run_number }}
-      - run: flutter build apk --release --build-number=${{ github.run_number }}
+      - run: flutter build apk --release --split-per-abi --build-number=${{ github.run_number }} --dart-define=OOBLECK_SYNC_URL=${{ vars.OOBLECK_SYNC_URL }}
+      - run: flutter build apk --release --build-number=${{ github.run_number }} --dart-define=OOBLECK_SYNC_URL=${{ vars.OOBLECK_SYNC_URL }}
       - uses: actions/upload-artifact@v4
         with:
           name: oobleck-android

@@ -11,6 +11,8 @@ import '../../core/models.dart';
 import '../../core/player/anime4k.dart';
 import '../../core/storage/records.dart';
 import '../../ui/widgets.dart';
+import '../sync/sync_controller.dart';
+import '../sync/sync_section.dart';
 import 'diagnostics_screen.dart';
 
 class SettingsScreen extends ConsumerWidget {
@@ -128,6 +130,8 @@ class SettingsScreen extends ConsumerWidget {
           title: const Text('Storage used by downloads'),
           trailing: Text(formatBytes(used), style: const TextStyle(color: Colors.white70)),
         ),
+        const _Header('Sync'),
+        const SyncSettingsSection(),
         const _Header('Data'),
         ListTile(
           leading: const Icon(Icons.history_rounded),
@@ -168,6 +172,13 @@ class SettingsScreen extends ConsumerWidget {
               subtitle: const Text('Step through search, episodes, servers and streams.'),
               onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const DiagnosticsScreen())),
             ),
+            if (ref.watch(syncProvider).signedIn)
+              ListTile(
+                leading: const Icon(Icons.delete_forever_outlined),
+                title: const Text('Delete sync account'),
+                subtitle: const Text('Removes the account and its history from the server. History on this device is kept.'),
+                onTap: () => _deleteSyncAccount(context, ref),
+              ),
           ],
         ),
         const _Header('About'),
@@ -261,5 +272,25 @@ class _TextSetting extends StatelessWidget {
         if (r != null) onSaved(r);
       },
     );
+  }
+}
+
+Future<void> _deleteSyncAccount(BuildContext context, WidgetRef ref) async {
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: const Text('Delete sync account?'),
+      content: const Text('The account and the history stored on the server are deleted for good. Other devices get signed out.'),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+        FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Delete')),
+      ],
+    ),
+  );
+  if (ok != true) return;
+  try {
+    await ref.read(syncProvider.notifier).signOut(deleteAccount: true);
+  } catch (e) {
+    if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
   }
 }
