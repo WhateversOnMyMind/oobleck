@@ -141,50 +141,106 @@ class _ContinueRow extends ConsumerWidget {
         separatorBuilder: (_, _) => const SizedBox(width: Gap.m),
         itemBuilder: (context, i) {
           final it = items[i];
-          final t = Theme.of(context).textTheme;
-          return SizedBox(
-            width: 290,
-            child: Card(
-              clipBehavior: Clip.antiAlias,
-              child: InkWell(
-                onTap: () => openPlayer(
-                  context,
-                  PlayRequest(slug: it.show.slug, showTitle: it.show.title, episode: it.episode, type: settings.audio),
-                ),
-                child: Row(children: [
-                  AspectRatio(
-                    aspectRatio: 2 / 3,
-                    child: PosterImage(url: it.show.poster, localPath: it.show.posterPath),
+          return ContinueCard(
+            item: it,
+            onPlay: () => openPlayer(
+              context,
+              PlayRequest(slug: it.show.slug, showTitle: it.show.title, episode: it.episode, type: settings.audio),
+            ),
+            onEpisodes: () => openShow(context, it.show.slug),
+          );
+        },
+      ),
+    );
+  }
+}
+
+/// A "Continue watching" card: tap (or Play) resumes; Episodes (or a long
+/// press / right click) opens the show page with the whole season.
+class ContinueCard extends StatelessWidget {
+  const ContinueCard({super.key, required this.item, required this.onPlay, required this.onEpisodes});
+  final ContinueItem item;
+  final VoidCallback onPlay;
+  final VoidCallback onEpisodes;
+
+  static const double width = 340;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    return SizedBox(
+      width: width,
+      child: Card(
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onPlay,
+          onLongPress: onEpisodes,
+          onSecondaryTap: onEpisodes,
+          child: Row(children: [
+            AspectRatio(
+              aspectRatio: 2 / 3,
+              child: PosterImage(url: item.show.poster, localPath: item.show.posterPath),
+            ),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 12, 8, 12),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(item.show.title, maxLines: 2, overflow: TextOverflow.ellipsis, style: t.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 4),
+                  Text(
+                    item.resumeFraction > 0 ? 'Episode ${item.episode} · resume' : 'Up next · Episode ${item.episode}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: t.bodySmall?.copyWith(color: Colors.white60),
                   ),
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text(it.show.title, maxLines: 2, overflow: TextOverflow.ellipsis, style: t.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
-                        const SizedBox(height: 4),
-                        Text(
-                          it.resumeFraction > 0 ? 'Episode ${it.episode} · resume' : 'Up next · Episode ${it.episode}',
-                          style: t.bodySmall?.copyWith(color: Colors.white60),
-                        ),
-                        const Spacer(),
-                        Row(children: [
-                          const Icon(Icons.play_circle_fill_rounded, color: kAccent, size: 30),
-                          const SizedBox(width: 8),
-                          Text('Play', style: t.labelLarge?.copyWith(color: kAccent, fontWeight: FontWeight.w700)),
-                        ]),
-                        const SizedBox(height: 10),
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(3),
-                          child: LinearProgressIndicator(value: it.resumeFraction, minHeight: 4, backgroundColor: Colors.white12),
-                        ),
-                      ]),
-                    ),
+                  const Spacer(),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Row(children: [
+                      _CardAction(icon: Icons.play_circle_fill_rounded, label: 'Play', accent: true, onTap: onPlay),
+                      const SizedBox(width: 4),
+                      _CardAction(icon: Icons.format_list_bulleted_rounded, label: 'Episodes', onTap: onEpisodes),
+                    ]),
+                  ),
+                  const SizedBox(height: 8),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(3),
+                    child: LinearProgressIndicator(value: item.resumeFraction, minHeight: 4, backgroundColor: Colors.white12),
                   ),
                 ]),
               ),
             ),
-          );
-        },
+          ]),
+        ),
+      ),
+    );
+  }
+}
+
+class _CardAction extends StatelessWidget {
+  const _CardAction({required this.icon, required this.label, required this.onTap, this.accent = false});
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final bool accent;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = accent ? kAccent : Colors.white70;
+    return Tooltip(
+      message: accent ? 'Resume this episode' : 'See all episodes of this season',
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            Icon(icon, color: color, size: accent ? 28 : 22),
+            const SizedBox(width: 6),
+            Text(label, style: Theme.of(context).textTheme.labelLarge?.copyWith(color: color, fontWeight: FontWeight.w700)),
+          ]),
+        ),
       ),
     );
   }
