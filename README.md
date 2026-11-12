@@ -17,7 +17,19 @@ Every push builds artifacts in GitHub Actions (`build` workflow):
 - `oobleck-windows`: unzip and run `oobleck.exe`
 - `oobleck-android`: sideload an APK (the universal one, or the one for your CPU)
 
-The Android release build is signed with the **debug keystore**, which is fine for sideloading.
+Android APKs are signed with a fixed release key, so a newer build installs over an older one and keeps your
+downloads and history. Stick to one APK type (`app-arm64-v8a-release.apk` for most phones): the per-CPU APKs carry a
+higher version code than the universal one, so switching from per-CPU to universal counts as a downgrade.
+The build number is the CI run number.
+
+Signing setup (once): the key lives outside the repo (keep a backup; without it, updates need a reinstall).
+Add two repository secrets under Settings > Secrets and variables > Actions:
+- `ANDROID_KEYSTORE_BASE64`: the keystore file, base64-encoded
+- `ANDROID_KEYSTORE_PASSWORD`: its password (store and key use the same one, alias `oobleck`)
+
+Without the secrets, CI falls back to a throwaway debug key and shows a warning. For local release builds, put
+`storeFile=<path to .jks>` and `storePassword=<password>` in `android/key.properties` (git-ignored).
+
 Tagging `v*` attaches the artifacts to a GitHub Release.
 
 ## Develop

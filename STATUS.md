@@ -58,11 +58,12 @@ in two attempts). The same tests pass locally with libmpv 0.37 + ffmpeg. The job
 ## How to test each feature
 - Library: download an episode from a show page (download icon), open the Library tab, tap the poster, tap the episode, turn Wi-Fi off
 - Resume: watch a minute, back out, reopen: toast "Resumed at …"; Home shows it under Continue watching
-- Korean subs: in the player, CC > Find Korean subs
+- Korean subs: in the player, CC > Find Korean subs. The search box starts with the Korean title found via the show's Japanese title (AniList by MAL id)
 - Anime4K: CC bar sparkle icon
 
 ## Blocked / TODO
 - `TODO(blocked)`: Kiwi not checked live; OpenSubtitles needs a user key
+- Android signing: add the `ANDROID_KEYSTORE_BASE64` and `ANDROID_KEYSTORE_PASSWORD` repository secrets (see README); until then CI warns and uses a throwaway key
 - CI is pinned to Flutter 3.47.9. Flutter 3.50 (stable since 2026-11-11) broke `analyze` (material.dart
   deprecated in favour of `material_ui`) and the Android build (needs AGP 9.1.1+); upgrading is a separate task
 - Local dev: Flutter 3.47.9 is installed at `C:\Users\PC\flutter` (analyze + test work). A local Windows build
