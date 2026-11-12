@@ -43,6 +43,9 @@ chain was checked live up to the decrypted stream URL, real responses are saved 
 - Player picture mode **Fit / Zoom to fill / Stretch** (button on the control bar, key Z), saved per show, for 4:3 shows such as
   Evangelion (1440x1080). Android subtitles are now sized from the screen height (same rule as mpv on desktop) instead of
   media_kit's sqrt(area/1080p), which made them ~10 dp on phones
+- Fixed: resuming showed "Resumed at 13:46" but played from 0:01. mpv's per-file `start` option did not take on
+  the site's HLS streams, and a reload during start-up reset to 0:00. The player now seeks once the stream is
+  seekable, confirms the position (retrying), and only then shows the toast (`resume_seek.dart`, tested with a fake player)
 - **Korean UI**: first launch asks English / 한국어 (pre-selects Korean on a Korean phone), remembered in settings,
   changeable in Settings > Language. Every screen, dialog, toast and player message is translated
   (`lib/app/strings.dart`); Flutter's own widgets follow via `flutter_localizations`. Not translated: the developer

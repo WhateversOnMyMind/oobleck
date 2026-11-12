@@ -18,6 +18,7 @@ import '../../core/subtitles/korean_lookup.dart';
 import '../../core/subtitles/subtitle_import.dart';
 import '../../core/storage/records.dart';
 import 'play_request.dart';
+import 'resume_seek.dart';
 import 'video_fit.dart';
 
 class QualityOption {
@@ -199,10 +200,10 @@ class PlayerSession extends ChangeNotifier {
         if (File(s.path).existsSync()) SubtitleTrackInfo(url: s.path, label: s.label)
     ];
     subtitleTracks.addAll(_importedTracks());
-    await player.open(Media(d.filePath!, start: startAt), play: true);
+    await player.open(Media(d.filePath!), play: true);
     if (id != _loadId) return;
     phase = SessionPhase.ready;
-    _afterOpen(startAt);
+    _afterOpen(startAt, id);
     unawaited(_loadSkipTimes());
   }
 
@@ -274,15 +275,44 @@ class PlayerSession extends ChangeNotifier {
     intro = s.intro;
     outro = s.outro;
     final url = urlOverride ?? s.signed(s.url);
-    await player.open(Media(url, httpHeaders: s.headers, start: startAt), play: true);
+    await player.open(Media(url, httpHeaders: s.headers), play: true);
     if (id != _loadId) return;
     phase = SessionPhase.ready;
-    _afterOpen(startAt);
+    _afterOpen(startAt, id);
     unawaited(_loadQualities(s));
     unawaited(_loadSkipTimes());
   }
 
-  void _afterOpen(Duration startAt) {
+  /// Position playback should reach once the stream is ready (a resume, or a
+  /// reload after an error). Kept until the seek is confirmed, so a reload
+  /// during start-up does not fall back to 0:00.
+  Duration? _pendingSeek;
+
+  /// Seeks to [at] once mpv can seek, and confirms it (see [seekWhenReady]).
+  Future<void> _resumeAt(Duration at, int id, {bool announce = false}) async {
+    _pendingSeek = at;
+    final ok = await seekWhenReady(
+      target: at,
+      duration: () => player.state.duration,
+      durationChanges: player.stream.duration,
+      position: () => player.state.position,
+      seek: player.seek,
+      cancelled: () => id != _loadId || _disposed || _pendingSeek != at,
+    );
+    if (_pendingSeek == at) _pendingSeek = null;
+    if (id != _loadId || _disposed) return;
+    if (!ok) {
+      Log.d('player', 'resume: seek to $at did not stick (now at ${player.state.position})');
+      return;
+    }
+    if (announce) {
+      showToast(strings.resumedAt(_fmt(at)), action: strings.startOver, onAction: () {
+        unawaited(player.seek(Duration.zero));
+      });
+    }
+  }
+
+  void _afterOpen(Duration startAt, int id) {
     _applySubtitleStyle();
     _pickDefaultSubtitle();
     unawaited(_applyOffset());
@@ -290,9 +320,10 @@ class PlayerSession extends ChangeNotifier {
     unawaited(applyAnime4K(settings().anime4k));
     unawaited(player.setRate(speed));
     if (startAt > const Duration(seconds: 5)) {
-      showToast(strings.resumedAt(_fmt(startAt)), action: strings.startOver, onAction: () {
-        unawaited(player.seek(Duration.zero));
-      });
+      // The toast appears only once the position is really there.
+      unawaited(_resumeAt(startAt, id, announce: true));
+    } else {
+      _pendingSeek = null;
     }
     notifyListeners();
   }
@@ -470,9 +501,10 @@ class PlayerSession extends ChangeNotifier {
     if (s == null) return;
     quality = q;
     notifyListeners();
-    final pos = player.state.position;
+    final pos = _pendingSeek ?? player.state.position;
     final url = q.url == null ? s.signed(s.url) : s.signed(q.url!);
-    await player.open(Media(url, httpHeaders: s.headers, start: pos), play: true);
+    await player.open(Media(url, httpHeaders: s.headers), play: true);
+    if (pos > const Duration(seconds: 1)) unawaited(_resumeAt(pos, _loadId));
     await selectSubtitle(subtitle);
   }
 
@@ -521,8 +553,12 @@ class PlayerSession extends ChangeNotifier {
     if (_reloads < 3) {
       _reloads++;
       _lastReload = DateTime.now();
-      final pos = player.state.position;
-      unawaited(player.open(Media(s.signed(quality?.url ?? s.url), httpHeaders: s.headers, start: pos), play: true));
+      // Before a resume has landed the position is still 0:00: keep the target.
+      final pos = _pendingSeek ?? player.state.position;
+      final id = _loadId;
+      unawaited(player.open(Media(s.signed(quality?.url ?? s.url), httpHeaders: s.headers), play: true).then((_) {
+        if (pos > const Duration(seconds: 1)) unawaited(_resumeAt(pos, id));
+      }));
       return;
     }
     phase = SessionPhase.error;
