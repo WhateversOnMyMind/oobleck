@@ -132,6 +132,7 @@ class HlsDownloader {
             final e = enc.Encrypter(enc.AES(enc.Key(Uint8List.fromList(key)), mode: enc.AESMode.cbc, padding: 'PKCS7'));
             data = Uint8List.fromList(e.decryptBytes(enc.Encrypted(data), iv: enc.IV(Uint8List.fromList(iv))));
           }
+          data = unwrapSegment(data);
           final tmp = File('${f.path}.tmp');
           await tmp.writeAsBytes(data, flush: true);
           await tmp.rename(f.path);
@@ -219,4 +220,33 @@ class HlsDownloader {
     await part.rename(outPath);
     return DownloadResult(path: outPath, bytes: File(outPath).lengthSync(), durationMs: 0, quality: '');
   }
+}
+
+/// Strips a fake file header that some CDNs put in front of HLS segments.
+///
+/// Megaplay's CDN (observed 2026-11-12) serves each MPEG-TS segment behind a
+/// small PNG image header. Players that stream skip it, but joined segments
+/// then look like a PNG to ffmpeg, which remuxed a 24-minute episode into a
+/// 13-second "video". Finds the first offset where TS packets start (sync
+/// byte 0x47 every 188 bytes) and drops what precedes it. Segments that
+/// already start with TS packets, or that are not TS at all, are returned unchanged.
+Uint8List unwrapSegment(Uint8List data) {
+  const packet = 188;
+  bool tsAt(int i) {
+    for (var k = 0; k < 5; k++) {
+      final j = i + k * packet;
+      if (j >= data.length || data[j] != 0x47) return false;
+    }
+    return true;
+  }
+
+  if (data.length < 8 || tsAt(0)) return data;
+  // Fragmented MP4 segments start with a box (size + type); leave them alone.
+  final box = String.fromCharCodes(data.sublist(4, 8));
+  if (const {'ftyp', 'styp', 'moof', 'sidx'}.contains(box)) return data;
+  final limit = min(data.length, 64 * 1024);
+  for (var i = 1; i < limit; i++) {
+    if (data[i] == 0x47 && tsAt(i)) return Uint8List.sublistView(data, i);
+  }
+  return data;
 }

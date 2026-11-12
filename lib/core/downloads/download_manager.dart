@@ -362,11 +362,14 @@ class DownloadManager {
 
 /// Desktop only: if ffmpeg is on PATH, remux .ts -> .mp4 (stream copy) and
 /// delete the .ts. Returns the new path, or [path] unchanged on any failure.
+/// The input format is forced to MPEG-TS so stray bytes at the start can never
+/// make ffmpeg probe it as something else (a PNG header once did), and only
+/// audio/video are kept (segments also carry a timed ID3 data stream).
 Future<String> remuxToMp4(String path, {String ffmpeg = 'ffmpeg'}) async {
   if (!(Platform.isWindows || Platform.isLinux || Platform.isMacOS) || !path.endsWith('.ts')) return path;
   try {
     final out = '${p.withoutExtension(path)}.mp4';
-    final r = await Process.run(ffmpeg, ['-y', '-loglevel', 'error', '-i', path, '-c', 'copy', out]);
+    final r = await Process.run(ffmpeg, ['-y', '-loglevel', 'error', '-f', 'mpegts', '-i', path, '-map', '0:v?', '-map', '0:a?', '-c', 'copy', out]);
     if (r.exitCode == 0 && File(out).existsSync() && File(out).lengthSync() > 0) {
       File(path).deleteSync();
       return out;
