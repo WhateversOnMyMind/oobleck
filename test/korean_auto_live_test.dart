@@ -32,6 +32,11 @@ void main() {
     await check('Frieren', titles, '3');
   }, skip: live ? false : 'set OOBLECK_LIVE=1');
 
+  test('Old Anissia entry without a Japanese title (AniList title by MAL id)', () async {
+    final titles = await AnimeTitles.forMal(buildDio(), '39587'); // Re:Zero season 2
+    await check('Re:Zero S2', titles, '25');
+  }, skip: live ? false : 'set OOBLECK_LIVE=1');
+
   test('Blogspot + Google Drive', () async {
     await check('Frieren S2', const AnimeTitles(native: '葬送のフリーレン 第2期'), '9');
   }, skip: live ? false : 'set OOBLECK_LIVE=1');

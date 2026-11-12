@@ -53,7 +53,7 @@ class KoreanSubFinder {
       try {
         final posts = <({String url, bool episodeOnly})>[];
         if ((c.number ?? -1) == ep) posts.add((url: c.website, episodeOnly: true));
-        for (final url in await _episodePosts(c.website, show.subject, ep)) {
+        for (final url in await _episodePosts(c.website, c.number?.toInt(), show.subject, ep)) {
           if (url != c.website) posts.add((url: url, episodeOnly: true));
         }
         // The latest post may carry a season pack.
@@ -72,20 +72,66 @@ class KoreanSubFinder {
     return null;
   }
 
-  Future<List<String>> _episodePosts(String postUrl, String subject, int ep) async {
+  /// Posts on the same blog that are for episode [ep]: from the blog feed
+  /// (recent posts) and, using the fansubber's own short name for the show
+  /// (learned from the latest post's title, whose episode is [latestEp]), from
+  /// the blog's search, which also reaches older seasons.
+  Future<List<String>> _episodePosts(String postUrl, int? latestEp, String subject, int ep) async {
     final u = Uri.parse(postUrl);
-    List<({String title, String url})> items;
-    if (u.host.endsWith('.tistory.com')) {
-      final r = await dio.get<String>('https://${u.host}/rss', options: Options(responseType: ResponseType.plain));
-      items = parseRssItems(r.data ?? '');
-    } else if (u.host.endsWith('.blogspot.com')) {
-      final r = await dio.get<String>('https://${u.host}/feeds/posts/summary',
-          queryParameters: {'alt': 'json', 'max-results': '150'}, options: Options(responseType: ResponseType.plain));
-      items = parseBloggerFeed(r.data ?? '');
-    } else {
-      return const [];
+    final tistory = u.host.endsWith('.tistory.com');
+    final blogspot = u.host.endsWith('.blogspot.com');
+    if (!tistory && !blogspot) return const [];
+
+    final feed = await _get(tistory
+        ? 'https://${u.host}/rss'
+        : 'https://${u.host}/feeds/posts/summary?alt=json&max-results=150');
+    var items = tistory ? parseRssItems(feed ?? '') : parseBloggerFeed(feed ?? '');
+
+    String? prefix;
+    if (latestEp != null) {
+      var latestTitle = items.where((i) => i.url == postUrl).firstOrNull?.title;
+      latestTitle ??= _pageTitle(await _get(postUrl) ?? '');
+      if (latestTitle != null) prefix = titlePrefix(latestTitle, latestEp);
     }
-    return [for (final i in items) if (postMatches(i.title, subject, ep)) i.url];
+    if (prefix != null) {
+      final q = Uri.encodeComponent(prefix);
+      if (tistory) {
+        for (var page = 1; page <= 3; page++) {
+          final found = parseTistorySearch(await _get('https://${u.host}/search/$q?page=$page') ?? '', u.host);
+          if (found.isEmpty) break;
+          items = [...items, ...found];
+        }
+      } else {
+        items = [
+          ...items,
+          ...parseBloggerFeed(await _get('https://${u.host}/feeds/posts/summary?alt=json&max-results=150&q=$q') ?? ''),
+        ];
+      }
+    }
+    Log.d('ko-subs', '${u.host}: ${items.length} posts checked, short name "${prefix ?? '-'}"');
+    final out = <String>[];
+    for (final i in items) {
+      final hit = postMatches(i.title, subject, ep) || (prefix != null && prefixMatches(i.title, prefix, ep));
+      if (hit && !out.contains(i.url)) out.add(i.url);
+    }
+    return out;
+  }
+
+  Future<String?> _get(String url) async {
+    try {
+      final r = await dio.get<String>(url, options: Options(responseType: ResponseType.plain));
+      return r.data;
+    } catch (e) {
+      Log.d('ko-subs', 'GET $url failed: $e');
+      return null;
+    }
+  }
+
+  static String? _pageTitle(String page) {
+    final m = RegExp(r'<meta[^>]+property="og:title"[^>]+content="([^"]*)"').firstMatch(page) ??
+        RegExp(r'<title>([^<]*)</title>').firstMatch(page);
+    final t = m?.group(1)?.trim();
+    return t == null || t.isEmpty ? null : t;
   }
 
   Future<({PreparedSubtitle prepared, String fileName})?> _fromPost(String url, int ep, bool episodeOnly) async {
@@ -130,14 +176,53 @@ AnissiaAnime? pickConfident(List<AnissiaAnime> items, AnimeTitles t) {
   if (native == null || native.isEmpty) return null;
   final season = seasonOf(native) ?? 1;
   final base = _norm(_stripSeason(native));
+  int seasonOfEntry(AnissiaAnime a) => seasonOf(a.subject) ?? seasonOf(a.originalSubject) ?? 1;
+  bool japaneseMatches(AnissiaAnime a) => a.originalSubject.isNotEmpty && _norm(_stripSeason(a.originalSubject)) == base;
+
+  // Korean names this show goes by: AniList synonyms, plus the Korean subject
+  // of any season whose Japanese title matches. Older Anissia entries have no
+  // Japanese title (e.g. "Re : 제로부터 시작하는 이세계 생활 2기", 2020), and are
+  // matched through a sibling season's Korean name instead.
+  final koreanBases = {
+    for (final k in t.korean) _norm(_stripSeason(k)),
+    for (final a in items)
+      if (japaneseMatches(a) && !_isFilm(a.subject)) _norm(_stripSeason(a.subject)),
+  };
   for (final a in items) {
-    final aSeason = seasonOf(a.subject) ?? seasonOf(a.originalSubject) ?? 1;
-    if (aSeason != season || _isFilm(a.subject) != _isFilm(native)) continue;
-    final sameTitle = (a.originalSubject.isNotEmpty && _norm(_stripSeason(a.originalSubject)) == base) ||
-        t.korean.any((k) => _norm(_stripSeason(k)) == _norm(_stripSeason(a.subject)));
-    if (sameTitle) return a;
+    if (seasonOfEntry(a) != season || _isFilm(a.subject) != _isFilm(native)) continue;
+    if (japaneseMatches(a) || koreanBases.contains(_norm(_stripSeason(a.subject)))) return a;
   }
   return null;
+}
+
+/// The fansubber's own name for the show, taken from a post title of a known
+/// episode: "리제로2 25 - 오랜만에 보네요잉" (episode 25) gives "리제로2".
+String? titlePrefix(String title, int ep) {
+  final m = RegExp('(?<![0-9])0*$ep(?![0-9])').firstMatch(title);
+  if (m == null) return null;
+  final prefix = title.substring(0, m.start).replaceAll(RegExp(r'[\s\-#.:|\[\(]*(ep|e)?\.?\s*$', caseSensitive: false), '').trim();
+  return _norm(prefix).length >= 2 ? prefix : null;
+}
+
+/// Whether [title] is `<prefix> <ep>` (any spacing, "EP", leading zeros).
+bool prefixMatches(String title, String prefix, int ep) => RegExp(
+      '${RegExp.escape(prefix)}\\s*[-#.:]?\\s*(?:ep\\.?|e)?\\s*0*$ep(?![0-9])',
+      caseSensitive: false,
+    ).hasMatch(title);
+
+/// Post links and titles from a Tistory search page (`/search/<q>`): anchors
+/// to `/<number>` with their text. Skins differ, so this stays generic.
+List<({String title, String url})> parseTistorySearch(String page, String host) {
+  final out = <({String title, String url})>[];
+  final seen = <String>{};
+  final re = RegExp(r'<a[^>]+href="(/\d+)"[^>]*>(.*?)</a>', dotAll: true);
+  for (final m in re.allMatches(page)) {
+    final text = m[2]!.replaceAll(RegExp(r'<[^>]*>'), ' ').replaceAll(RegExp(r'\s+'), ' ').trim();
+    if (text.isEmpty) continue;
+    final url = 'https://$host${m[1]}';
+    if (seen.add(url)) out.add((title: text, url: url));
+  }
+  return out;
 }
 
 /// Whether a blog post title is this show's post for episode [ep]

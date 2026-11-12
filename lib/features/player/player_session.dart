@@ -380,7 +380,11 @@ class PlayerSession extends ChangeNotifier {
     notifyListeners();
     try {
       final found = await lookupKoreanSub(dio: dio, db: db, slug: slug, malId: malId, episode: episode);
-      if (found == null || id != _loadId || _disposed) return;
+      if (id != _loadId || _disposed) return;
+      if (found == null) {
+        if (!_userPickedSubtitle) showToast('No Korean subtitles found for episode $episode');
+        return;
+      }
       final path = await saveSubtitle(found.subtitle, supportDir, slug, episode);
       await addExternalSubtitle(path, found.label, user: false);
       if (_userPickedSubtitle) return;

@@ -41,6 +41,40 @@ void main() {
     });
   });
 
+  test('an entry without a Japanese title matches through a sibling season Korean name', () {
+    // Live Anissia results for Re:Zero (2026-11-12): 2기 has no Japanese title.
+    final rezero = [
+      a('Re : 제로부터 시작하는 이세계 생활 4기', 'Re:ゼロから始める異世界生活4th season', 3244),
+      a('Re : 제로부터 시작하는 이세계 생활 3기', 'Re:ゼロから始める異世界生活3rd season', 2681),
+      a('Re : 제로부터 시작하는 이세계 생활 빙결의 인연', '', 1693),
+      a('Re : 제로부터 시작하는 이세계 생활 2기', '', 1830),
+    ];
+    expect(pickConfident(rezero, const AnimeTitles(native: 'Re:ゼロから始める異世界生活 2nd season'))?.animeNo, 1830);
+    expect(pickConfident(rezero, const AnimeTitles(native: 'Re:ゼロから始める異世界生活 3rd season'))?.animeNo, 2681);
+    // Season 1 is not listed: the side story must not be taken for it.
+    expect(pickConfident(rezero, const AnimeTitles(native: 'Re:ゼロから始める異世界生活')), isNull);
+  });
+
+  test('fansubber short names from post titles', () {
+    expect(titlePrefix('리제로2 25 - 오랜만에 보네요잉', 25), '리제로2');
+    expect(titlePrefix('약사의 혼잣말 3기 6화 자막', 6), '약사의 혼잣말 3기');
+    expect(titlePrefix('수염깍이 01', 1), '수염깍이');
+    expect(titlePrefix('10', 10), isNull);
+    expect(prefixMatches('리제로2 1', '리제로2', 1), isTrue);
+    expect(prefixMatches('리제로2 01 - 시작', '리제로2', 1), isTrue);
+    expect(prefixMatches('리제로2 12', '리제로2', 1), isFalse);
+    expect(prefixMatches('리제로2 25', '리제로2', 5), isFalse);
+    expect(prefixMatches('리제로 신편집 14', '리제로2', 14), isFalse);
+  });
+
+  test('Tistory search results', () {
+    const page = '<a href="/" target="">홈</a><a href="/3523" class="post_link">\n'
+        '<h2 class="post_title">리제로2 25</h2>\n'
+        '</a><a href="/4157" class="cut">아이 21</a>';
+    expect(parseTistorySearch(page, 'fuko.tistory.com').map((e) => '${e.title}|${e.url}'),
+        ['리제로2 25|https://fuko.tistory.com/3523', '아이 21|https://fuko.tistory.com/4157']);
+  });
+
   group('postMatches', () {
     test('real post titles', () {
       expect(postMatches('약사의 혼잣말 3기 6화 자막', '약사의 혼잣말 3기', 6), isTrue);
