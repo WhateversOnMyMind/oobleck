@@ -8,4 +8,4 @@ workers_dev = true
 binding = "DB"
 database_name = "oobleck-sync"
 # Printed by `npx wrangler@4 d1 create oobleck-sync` (an identifier, not a secret).
-database_id = "00000000-0000-0000-0000-000000000000"
+database_id = "484fdc2b-9a36-470f-864a-3e5aa5afbc09"

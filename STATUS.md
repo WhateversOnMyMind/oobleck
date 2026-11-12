@@ -46,8 +46,9 @@ chain was checked live up to the decrypted stream URL, real responses are saved 
 - **Watch-history sync** (optional): Settings → Sync → Sign in / Create account (user ID + password only). Syncs on launch,
   when the app comes back, after the player closes, every 10 min and on "Sync now"; newest progress per episode wins,
   "Clear watch history" reaches other devices. Server: Cloudflare Worker + D1 in `server/` (tests: `node --test`, and
-  `test/sync_test.dart` runs the app against the real Worker code). **Not deployed yet**: needs the owner's free
-  Cloudflare account, see `server/README.md`
+  `test/sync_test.dart` runs the app against the real Worker code). Deployed 2026-11-12 to the owner's Cloudflare
+  account (D1 `oobleck-sync`, APAC); live smoke test passed (register, sync, wrong password 401, delete account).
+  Redeploy: `cd server && npx wrangler@4 deploy`
 
 ## Verified automatically (beyond unit tests)
 - `playback` CI job (real libmpv): plays a public HLS stream, seeks, changes speed, accepts the subtitle and Anime4K
