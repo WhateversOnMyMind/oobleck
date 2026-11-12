@@ -89,4 +89,63 @@ void main() {
     expect(tester.takeException(), isNull);
     await cleanUp(tester);
   });
+
+  Widget homeBar(Size size) => MaterialApp(
+        theme: buildTheme(),
+        home: const Scaffold(
+          body: CustomScrollView(slivers: [
+            SliverAppBar(title: Text('Oobleck'), actions: [HomeSyncButton()]),
+          ]),
+        ),
+      );
+
+  testWidgets('Home top right: Sign in while signed out, opens the sign-in form', (tester) async {
+    await tester.runAsync(() async {
+      dir = Directory.systemTemp.createTempSync('oobleck_home_sync');
+      db = await AppDb.open(dir.path);
+    });
+    for (final size in const [Size(1920, 1080), Size(360, 760)]) {
+      tester.view.physicalSize = size;
+      tester.view.devicePixelRatio = 1;
+      await tester.pumpWidget(ProviderScope(
+        key: ValueKey(size),
+        overrides: [dbProvider.overrideWithValue(db), supportDirProvider.overrideWithValue(dir.path)],
+        child: homeBar(size),
+      ));
+      await tester.pump();
+      final button = find.widgetWithText(FilledButton, 'Sign in');
+      expect(button, findsOneWidget);
+      // Right side of the bar.
+      expect(tester.getCenter(button).dx, greaterThan(size.width * 0.6));
+      expect(tester.takeException(), isNull);
+    }
+    await tester.tap(find.widgetWithText(FilledButton, 'Sign in'));
+    await tester.pumpAndSettle();
+    expect(find.text('Sync watch history'), findsOneWidget);
+    expect(find.widgetWithText(TextField, 'User ID'), findsOneWidget);
+    addTearDown(tester.view.reset);
+    await cleanUp(tester);
+  });
+
+  testWidgets('Home top right: the user ID once signed in, long names do not overflow', (tester) async {
+    await tester.runAsync(() async {
+      dir = Directory.systemTemp.createTempSync('oobleck_home_sync2');
+      db = await AppDb.open(dir.path);
+      await db.setMisc(AppDb.syncTokenKey, 'f' * 64);
+      await db.setMisc('sync:user', 'a_very_long_user_id_for_testing__');
+    });
+    tester.view.physicalSize = const Size(360, 760);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(ProviderScope(
+      overrides: [dbProvider.overrideWithValue(db), supportDirProvider.overrideWithValue(dir.path)],
+      child: homeBar(const Size(360, 760)),
+    ));
+    await tester.pump();
+    expect(find.widgetWithText(FilledButton, 'Sign in'), findsNothing);
+    expect(find.byType(ActionChip), findsOneWidget);
+    expect(find.byIcon(Icons.cloud_done_rounded), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await cleanUp(tester);
+  });
 }

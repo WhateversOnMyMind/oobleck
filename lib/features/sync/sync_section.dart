@@ -43,6 +43,45 @@ class SyncSettingsSection extends ConsumerWidget {
   }
 }
 
+/// Top-right of Home: a "Sign in" button while signed out, then the user ID
+/// with the sync state (tap to sync now).
+class HomeSyncButton extends ConsumerWidget {
+  const HomeSyncButton({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final s = ref.watch(syncProvider);
+    if (!s.signedIn) {
+      return Padding(
+        padding: const EdgeInsets.only(right: 12),
+        child: FilledButton.icon(
+          onPressed: () => showSyncSignIn(context),
+          icon: const Icon(Icons.person_outline_rounded, size: 20),
+          label: const Text('Sign in'),
+        ),
+      );
+    }
+    final icon = s.syncing
+        ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+        : Icon(s.error == null ? Icons.cloud_done_rounded : Icons.cloud_off_rounded,
+            size: 20, color: s.error == null ? kAccent : Colors.orangeAccent);
+    return Padding(
+      padding: const EdgeInsets.only(right: 12),
+      child: Tooltip(
+        message: s.syncing ? 'Syncing…' : s.error ?? '${syncedAgo(s.lastSync, DateTime.now())} · tap to sync now',
+        child: ActionChip(
+          avatar: icon,
+          label: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 140),
+            child: Text(s.username!, overflow: TextOverflow.ellipsis),
+          ),
+          onPressed: () => unawaited(ref.read(syncProvider.notifier).syncNow()),
+        ),
+      ),
+    );
+  }
+}
+
 String syncedAgo(DateTime? t, DateTime now) {
   if (t == null) return 'Not synced yet';
   final d = now.difference(t);

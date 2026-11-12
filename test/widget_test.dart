@@ -9,7 +9,7 @@ import 'package:oobleck/core/storage/app_db.dart';
 import 'package:oobleck/features/library/library_screen.dart';
 
 void main() {
-  testWidgets('empty library shows a friendly empty state', (tester) async {
+  testWidgets('empty Downloaded tab shows a friendly empty state', (tester) async {
     late AppDb db;
     late Directory dir;
     await tester.runAsync(() async {
@@ -21,7 +21,7 @@ void main() {
       child: MaterialApp(theme: buildTheme(), home: const Scaffold(body: LibraryScreen())),
     ));
     await tester.pump(const Duration(milliseconds: 100));
-    expect(find.text('Your library is empty'), findsOneWidget);
+    expect(find.text('Nothing downloaded yet'), findsOneWidget);
     await tester.runAsync(() async {
       await db.close();
       dir.deleteSync(recursive: true);

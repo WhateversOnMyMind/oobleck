@@ -34,7 +34,7 @@ chain was checked live up to the decrypted stream URL, real responses are saved 
   aniskip + source intro/outro, auto-next, gestures (Android) and keyboard shortcuts (desktop)
 - **M4** Downloads: own HLS downloader (AES-128, retries, re-sign on 403, resumable parts), plain MP4 ranged resume,
   persistent queue, concurrency limit, server fallback, Android foreground service, optional ffmpeg remux.
-  **Library tab**: poster grid, show page with episodes, one tap plays offline, delete, storage used, "Get more".
+  **Downloaded tab** (was Library): poster grid, show page with episodes, one tap plays offline, delete, storage used, "Get more".
   Posters are cached to disk and metadata is stored in the database
 - **M5** Subtitles: file import, SMI to SRT, CP949 decoding, Anissia finder (endpoints verified live 2026-11-11),
   attachment importer (direct, zip, Tistory-style links, Google Drive), browser + file fallback, OpenSubtitles (optional)
@@ -70,7 +70,7 @@ in two attempts). The same tests pass locally with libmpv 0.37 + ffmpeg. The job
 - Windows fullscreen toggling, and the custom controls' layout/gestures (no UI test drives them yet)
 
 ## How to test each feature
-- Library: download an episode from a show page (download icon), open the Library tab, tap the poster, tap the episode, turn Wi-Fi off
+- Library: download an episode from a show page (download icon), open the Downloaded tab, tap the poster, tap the episode, turn Wi-Fi off
 - Resume: watch a minute, back out, reopen: toast "Resumed at …"; Home shows it under Continue watching
 - Korean subs: automatic. Open an episode and a Korean fansub is found, saved and turned on ("Korean subtitles · <fansubber>"); downloads save it next to the video. Manual fallback: CC > Search Korean subs manually. Live check: `OOBLECK_LIVE=1 flutter test test/korean_auto_live_test.dart`
 - Subtitle sync: CC > Style & timing, in ms (G / H keys, Shift for 1 s). Saved per season, applied to Korean/imported subtitles only

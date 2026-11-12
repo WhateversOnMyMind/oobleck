@@ -9,6 +9,7 @@ import '../../ui/widgets.dart';
 import '../player/open_player.dart';
 import '../player/play_request.dart';
 import '../show/show_screen.dart';
+import '../sync/sync_section.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -24,6 +25,7 @@ class HomeScreen extends ConsumerWidget {
           const SliverAppBar(
             floating: true,
             title: Text('Oobleck', style: TextStyle(fontWeight: FontWeight.w800, letterSpacing: 0.5)),
+            actions: [HomeSyncButton()],
           ),
           if (cont.isNotEmpty) ...[
             const SliverToBoxAdapter(child: SectionHeader('Continue watching')),

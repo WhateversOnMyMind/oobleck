@@ -25,7 +25,7 @@ class LibraryScreen extends ConsumerWidget {
       slivers: [
         SliverAppBar(
           floating: true,
-          title: const Text('Library', style: TextStyle(fontWeight: FontWeight.w800)),
+          title: const Text('Downloaded', style: TextStyle(fontWeight: FontWeight.w800)),
           actions: [
             if (pending.isNotEmpty)
               IconButton(
@@ -40,7 +40,7 @@ class LibraryScreen extends ConsumerWidget {
             hasScrollBody: false,
             child: EmptyState(
               icon: Icons.download_for_offline_outlined,
-              title: 'Your library is empty',
+              title: 'Nothing downloaded yet',
               message: 'Download episodes from any show page and they will appear here, ready to watch offline.',
             ),
           )

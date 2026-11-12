@@ -18,7 +18,7 @@ class _ShellState extends State<Shell> {
   static const _destinations = [
     (Icons.home_outlined, Icons.home_rounded, 'Home'),
     (Icons.search_rounded, Icons.search_rounded, 'Search'),
-    (Icons.video_library_outlined, Icons.video_library_rounded, 'Library'),
+    (Icons.download_for_offline_outlined, Icons.download_for_offline_rounded, 'Downloaded'),
     (Icons.settings_outlined, Icons.settings_rounded, 'Settings'),
   ];
 

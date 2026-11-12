@@ -4,7 +4,7 @@ A personal anime player for **Windows** and **Android**, built from one Flutter 
 Plays the raw stream in a native player (libmpv), so there are no ads and no web player.
 
 ## Features
-- Offline **Library**: downloaded shows as poster cards, then episodes, one tap plays in the app with subtitles, no internet needed
+- **Downloaded** tab: downloaded shows as poster cards, then episodes, one tap plays in the app with subtitles, no internet needed
 - **Continue watching** on Home, with resume positions saved locally
 - Custom full-screen player: auto-hiding controls, seek, speed, quality, server, sub/dub, next episode, skip intro/outro
 - All subtitle tracks the source provides (every language), plus import, styling and a sync offset
