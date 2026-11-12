@@ -48,7 +48,8 @@ chain was checked live up to the decrypted stream URL, real responses are saved 
   "Clear watch history" reaches other devices. Server: Cloudflare Worker + D1 in `server/` (tests: `node --test`, and
   `test/sync_test.dart` runs the app against the real Worker code). Deployed 2026-11-12 to the owner's Cloudflare
   account (D1 `oobleck-sync`, APAC); live smoke test passed (register, sync, wrong password 401, delete account).
-  Redeploy: `cd server && npx wrangler@4 deploy`
+  Redeploy: `cd server && npx wrangler@4 deploy`. CI builds include the server address from the `OOBLECK_SYNC_URL`
+  repository variable, so the sign-in dialog only asks for user ID and password
 
 ## Verified automatically (beyond unit tests)
 - `playback` CI job (real libmpv): plays a public HLS stream, seeks, changes speed, accepts the subtitle and Anime4K
