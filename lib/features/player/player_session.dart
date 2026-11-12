@@ -13,6 +13,8 @@ import '../../core/models.dart';
 import '../../core/player/anime4k.dart';
 import '../../core/sources/source.dart';
 import '../../core/storage/app_db.dart';
+import '../../core/subtitles/korean_lookup.dart';
+import '../../core/subtitles/subtitle_import.dart';
 import '../../core/storage/records.dart';
 import 'play_request.dart';
 
@@ -139,6 +141,8 @@ class PlayerSession extends ChangeNotifier {
     quality = null;
     subtitleTracks = [];
     subtitle = null;
+    _userPickedSubtitle = false;
+    koreanSearching = false;
     intro = null;
     outro = null;
     _serverTimer?.cancel();
@@ -270,8 +274,9 @@ class PlayerSession extends ChangeNotifier {
 
   void _afterOpen(Duration startAt) {
     _applySubtitleStyle();
-    unawaited(_setProp('sub-delay', subtitleOffset.toString()));
     _pickDefaultSubtitle();
+    unawaited(_applyOffset());
+    unawaited(_autoKorean(_loadId));
     unawaited(applyAnime4K(settings().anime4k));
     unawaited(player.setRate(speed));
     if (startAt > const Duration(seconds: 5)) {
@@ -292,7 +297,7 @@ class PlayerSession extends ChangeNotifier {
   }
 
   /// Adds an imported/downloaded subtitle file for this episode and selects it.
-  Future<void> addExternalSubtitle(String path, String label) async {
+  Future<void> addExternalSubtitle(String path, String label, {bool user = true}) async {
     final key = 'subs:${request.slug}|${request.episode}';
     final list = [...(db.misc<List>(key) ?? const []).cast<Map>()];
     list.removeWhere((m) => m['path'] == path);
@@ -300,18 +305,28 @@ class PlayerSession extends ChangeNotifier {
     await db.setMisc(key, list);
     final t = SubtitleTrackInfo(url: path, label: label);
     subtitleTracks = [...subtitleTracks.where((x) => x.url != path), t];
-    await selectSubtitle(t);
+    if (!user && _userPickedSubtitle) {
+      notifyListeners();
+      return;
+    }
+    await selectSubtitle(t, user: user);
   }
 
   void _pickDefaultSubtitle() {
     if (subtitleTracks.isEmpty) return;
-    final lang = settings().subtitleLanguage;
+    final lang = settings().autoKoreanSubs ? 'ko' : settings().subtitleLanguage;
     final pick = subtitleTracks.where((t) => t.language == lang).firstOrNull ??
+        subtitleTracks.where((t) => t.language == settings().subtitleLanguage).firstOrNull ??
         subtitleTracks.where((t) => t.isDefault).firstOrNull;
-    if (pick != null) unawaited(selectSubtitle(pick));
+    if (pick != null) unawaited(selectSubtitle(pick, user: false));
   }
 
-  Future<void> selectSubtitle(SubtitleTrackInfo? t) async {
+  /// True once the viewer picks a track themselves; automatic Korean
+  /// subtitles never replace that choice.
+  bool _userPickedSubtitle = false;
+
+  Future<void> selectSubtitle(SubtitleTrackInfo? t, {bool user = true}) async {
+    if (user) _userPickedSubtitle = true;
     subtitle = t;
     notifyListeners();
     if (t == null) {
@@ -319,13 +334,65 @@ class PlayerSession extends ChangeNotifier {
     } else {
       await player.setSubtitleTrack(SubtitleTrack.uri(t.url, title: t.label, language: t.language));
     }
+    await _applyOffset();
   }
 
-  Future<void> setSubtitleOffset(double seconds) async {
-    subtitleOffset = double.parse(seconds.toStringAsFixed(1));
+  // ---- sync offset ----------------------------------------------------------------
+  /// Fansub timing differs from the stream by a fixed amount for a whole
+  /// season, so the offset is saved per show (each season is its own show) and
+  /// applies to Korean/imported tracks in every episode. The site's own tracks
+  /// are already in sync and always play with no offset.
+  bool isFansubTrack(SubtitleTrackInfo? t) {
+    if (t == null) return false;
+    if (t.language == 'ko' || t.label.startsWith('Korean')) return true;
+    return _importedTracks().any((x) => x.url == t.url);
+  }
+
+  int get subtitleOffsetMs => (subtitleOffset * 1000).round();
+
+  Future<void> _applyOffset() async {
+    final d = isFansubTrack(subtitle) ? subtitleOffset : 0.0;
+    await _setProp('sub-delay', d.toStringAsFixed(3));
+  }
+
+  Future<void> setSubtitleOffsetMs(int ms) async {
+    subtitleOffset = ms.clamp(-600000, 600000) / 1000;
     notifyListeners();
-    await _setProp('sub-delay', subtitleOffset.toString());
+    await _applyOffset();
     await db.setMisc('subOffset:${request.slug}', subtitleOffset);
+  }
+
+  Future<void> setSubtitleOffset(double seconds) => setSubtitleOffsetMs((seconds * 1000).round());
+
+  // ---- automatic Korean subtitles -------------------------------------------------
+  bool koreanSearching = false;
+
+  Future<void> _autoKorean(int id) async {
+    if (!settings().autoKoreanSubs) return;
+    final existing = subtitleTracks.where((t) => t.language == 'ko').firstOrNull;
+    if (existing != null) {
+      if (!_userPickedSubtitle && subtitle != existing) await selectSubtitle(existing, user: false);
+      return;
+    }
+    final slug = request.slug;
+    final episode = request.episode;
+    koreanSearching = true;
+    notifyListeners();
+    try {
+      final found = await lookupKoreanSub(dio: dio, db: db, slug: slug, malId: malId, episode: episode);
+      if (found == null || id != _loadId || _disposed) return;
+      final path = await saveSubtitle(found.subtitle, supportDir, slug, episode);
+      await addExternalSubtitle(path, found.label, user: false);
+      if (_userPickedSubtitle) return;
+      showToast('Korean subtitles · ${found.fansubber}');
+    } catch (e) {
+      Log.d('ko-subs', 'auto lookup failed: $e');
+    } finally {
+      if (id == _loadId && !_disposed) {
+        koreanSearching = false;
+        notifyListeners();
+      }
+    }
   }
 
   void _applySubtitleStyle() {

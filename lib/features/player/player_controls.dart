@@ -192,12 +192,12 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
     } else if (k == LogicalKeyboardKey.bracketRight) {
       unawaited(s.setSpeed((s.speed + 0.25).clamp(0.25, 3.0)));
       _showHud(Icons.speed_rounded, '${s.speed.toStringAsFixed(2)}×');
-    } else if (k == LogicalKeyboardKey.keyG) {
-      unawaited(s.setSubtitleOffset(s.subtitleOffset - 0.1));
-      _showHud(Icons.subtitles_rounded, 'Sync ${s.subtitleOffset.toStringAsFixed(1)}s');
-    } else if (k == LogicalKeyboardKey.keyH) {
-      unawaited(s.setSubtitleOffset(s.subtitleOffset + 0.1));
-      _showHud(Icons.subtitles_rounded, 'Sync ${s.subtitleOffset.toStringAsFixed(1)}s');
+    } else if (k == LogicalKeyboardKey.keyG || k == LogicalKeyboardKey.keyH) {
+      // G / H: -/+100 ms, with Shift: -/+1 s.
+      final step = HardwareKeyboard.instance.isShiftPressed ? 1000 : 100;
+      final ms = s.subtitleOffsetMs + (k == LogicalKeyboardKey.keyG ? -step : step);
+      unawaited(s.setSubtitleOffsetMs(ms));
+      _showHud(Icons.subtitles_rounded, 'Sync ${formatOffsetMs(ms)}');
     } else {
       return KeyEventResult.ignored;
     }
@@ -640,7 +640,8 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
         ListTile(
           dense: true,
           leading: const Icon(Icons.travel_explore_rounded),
-          title: const Text('Find Korean subs'),
+          title: const Text('Search Korean subs manually'),
+          subtitle: s.koreanSearching ? const Text('Looking for Korean subtitles automatically…') : null,
           onTap: () {
             Navigator.pop(ctx);
             widget.onFindKorean();
@@ -678,26 +679,7 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
           );
       const colors = {'White': 'FFFFFF', 'Yellow': 'FFE066', 'Cyan': '7DF9FF', 'Green': '9BE564'};
       return Column(children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-          child: Row(children: [
-            const Expanded(child: Text('Sync offset')),
-            IconButton(icon: const Icon(Icons.remove_circle_outline_rounded), onPressed: () async {
-              await s.setSubtitleOffset(s.subtitleOffset - 0.1);
-              setSheet(() {});
-            }),
-            SizedBox(width: 64, child: Text('${s.subtitleOffset >= 0 ? '+' : ''}${s.subtitleOffset.toStringAsFixed(1)} s', textAlign: TextAlign.center)),
-            IconButton(icon: const Icon(Icons.add_circle_outline_rounded), onPressed: () async {
-              await s.setSubtitleOffset(s.subtitleOffset + 0.1);
-              setSheet(() {});
-            }),
-            TextButton(onPressed: () async {
-              await s.setSubtitleOffset(0);
-              setSheet(() {});
-            }, child: const Text('Reset')),
-          ]),
-        ),
-        const Padding(padding: EdgeInsets.symmetric(horizontal: 20), child: Align(alignment: Alignment.centerLeft, child: Text('Saved for this show.', style: TextStyle(color: Colors.white54, fontSize: 12)))),
+        _SyncControl(session: s, onChanged: () => setSheet(() {})),
         const Divider(),
         slider('Size', st.subSize, 24, 90, 'subSize'),
         slider('Outline', st.subOutline, 0, 6, 'subOutline'),
@@ -774,5 +756,83 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
           }, subtitle: pr.$1 == 'a' ? 'Recommended' : null),
       ]);
     }));
+  }
+}
+
+/// "+1250 ms", "-300 ms", "0 ms".
+String formatOffsetMs(int ms) => '${ms > 0 ? '+' : ''}$ms ms';
+
+/// Subtitle sync in milliseconds, saved per season and applied to Korean /
+/// imported subtitles in every episode. Tap the value to type an exact one.
+class _SyncControl extends StatelessWidget {
+  const _SyncControl({required this.session, required this.onChanged});
+  final PlayerSession session;
+  final VoidCallback onChanged;
+
+  Future<void> _set(int ms) async {
+    await session.setSubtitleOffsetMs(ms);
+    onChanged();
+  }
+
+  Future<void> _type(BuildContext context) async {
+    final c = TextEditingController(text: '${session.subtitleOffsetMs}');
+    final v = await showDialog<int>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Subtitle sync (ms)'),
+        content: TextField(
+          controller: c,
+          autofocus: true,
+          keyboardType: const TextInputType.numberWithOptions(signed: true),
+          decoration: const InputDecoration(helperText: 'Positive = subtitles later, negative = earlier'),
+          onSubmitted: (t) => Navigator.pop(ctx, int.tryParse(t.trim())),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, int.tryParse(c.text.trim())), child: const Text('Set')),
+        ],
+      ),
+    );
+    if (v != null) await _set(v);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ms = session.subtitleOffsetMs;
+    final applies = session.isFansubTrack(session.subtitle);
+    Widget step(String label, int delta) => TextButton(
+          style: TextButton.styleFrom(minimumSize: const Size(52, 36), padding: const EdgeInsets.symmetric(horizontal: 6)),
+          onPressed: () => _set(ms + delta),
+          child: Text(label),
+        );
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          const Expanded(child: Text('Subtitle sync')),
+          TextButton(onPressed: ms == 0 ? null : () => _set(0), child: const Text('Reset')),
+        ]),
+        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+          step('−1 s', -1000),
+          step('−100', -100),
+          InkWell(
+            borderRadius: BorderRadius.circular(8),
+            onTap: () => _type(context),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              child: Text(formatOffsetMs(ms), style: const TextStyle(fontWeight: FontWeight.w700, fontFeatures: [FontFeature.tabularFigures()])),
+            ),
+          ),
+          step('+100', 100),
+          step('+1 s', 1000),
+        ]),
+        Text(
+          applies
+              ? 'Saved for this season: every episode uses it. Keys: G / H (Shift for 1 s).'
+              : 'Saved for this season. Applies to Korean and imported subtitles only; this track is already in sync.',
+          style: const TextStyle(color: Colors.white54, fontSize: 12),
+        ),
+      ]),
+    );
   }
 }

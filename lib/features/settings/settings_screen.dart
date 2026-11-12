@@ -53,6 +53,13 @@ class SettingsScreen extends ConsumerWidget {
           value: s.skipIntroButton,
           onChanged: (v) => n.set('skipIntroButton', v),
         ),
+        SwitchListTile(
+          secondary: const Icon(Icons.translate_rounded),
+          title: const Text('Korean subtitles automatically'),
+          subtitle: const Text('Finds a Korean fansub for each episode and turns it on'),
+          value: s.autoKoreanSubs,
+          onChanged: (v) => n.set('autoKoreanSubs', v),
+        ),
         _Choice<String>(
           icon: Icons.auto_awesome_rounded,
           title: 'Anime4K upscaling',

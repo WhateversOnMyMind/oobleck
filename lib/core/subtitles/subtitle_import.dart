@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:archive/archive.dart';
@@ -101,8 +102,32 @@ Future<Map<String, List<int>>> fetchSubtitleFiles(Dio dio, SubAttachment a) asyn
   final bytes = r.data ?? const <int>[];
   final looksZip = bytes.length > 4 && bytes[0] == 0x50 && bytes[1] == 0x4B;
   if (looksZip || _extOf(a.name) == '.zip') return unzipSubtitles(bytes);
-  final name = kSubtitleExts.contains(_extOf(a.name)) ? a.name : '${a.name}.smi';
+  // Google Drive (and some hosts) only reveal the real file name in the
+  // Content-Disposition header; the link itself says nothing.
+  final served = fileNameFromDisposition(r.headers.value('content-disposition'));
+  final base = served ?? a.name;
+  final name = kSubtitleExts.contains(_extOf(base)) ? base : '$base.smi';
   return {name: bytes};
+}
+
+/// File name from a Content-Disposition header (RFC 5987 `filename*=` first).
+String? fileNameFromDisposition(String? header) {
+  if (header == null) return null;
+  final star = RegExp(r"filename\*\s*=\s*(?:UTF-8|utf-8)''([^;]+)").firstMatch(header);
+  if (star != null) {
+    try {
+      return Uri.decodeComponent(star.group(1)!.trim());
+    } catch (_) {}
+  }
+  final plain = RegExp(r'filename\s*=\s*"?([^";]+)"?').firstMatch(header)?.group(1)?.trim();
+  if (plain == null) return null;
+  // Raw UTF-8 names arrive read as Latin-1 ("íë¦¬ë"); undo that when it decodes cleanly.
+  if (plain.codeUnits.every((c) => c < 0x100) && plain.codeUnits.any((c) => c >= 0x80)) {
+    try {
+      return utf8.decode(latin1.encode(plain));
+    } catch (_) {}
+  }
+  return plain;
 }
 
 /// Writes a prepared subtitle to `<supportDir>/subs/<slug>/` and returns the path.

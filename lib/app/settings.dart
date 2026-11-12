@@ -11,6 +11,7 @@ class AppSettings {
     this.serverOrder = const ['HD-1', 'HD-2', 'Vidstream-1', 'Vidstream-2', 'Kiwi'],
     this.autoNext = true,
     this.skipIntroButton = true,
+    this.autoKoreanSubs = true,
     this.subtitleLanguage = 'en',
     this.subSize = 46,
     this.subColor = 'FFFFFF',
@@ -36,6 +37,9 @@ class AppSettings {
   final List<String> serverOrder;
   final bool autoNext;
   final bool skipIntroButton;
+
+  /// Find, save and turn on a Korean fansub for each episode without asking.
+  final bool autoKoreanSubs;
   final String subtitleLanguage;
   final double subSize;
   final String subColor; // RRGGBB
@@ -63,6 +67,7 @@ class AppSettings {
       serverOrder: (db.setting<List>('serverOrder')?.cast<String>()) ?? const AppSettings().serverOrder,
       autoNext: g('autoNext', true),
       skipIntroButton: g('skipIntroButton', true),
+      autoKoreanSubs: g('autoKoreanSubs', true),
       subtitleLanguage: g('subtitleLanguage', 'en'),
       subSize: g<num>('subSize', 46).toDouble(),
       subColor: g('subColor', 'FFFFFF'),

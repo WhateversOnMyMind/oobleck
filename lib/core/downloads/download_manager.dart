@@ -12,6 +12,7 @@ import '../models.dart';
 import '../sources/source.dart';
 import '../storage/app_db.dart';
 import '../storage/records.dart';
+import '../subtitles/korean_lookup.dart';
 import 'foreground.dart';
 import 'hls_downloader.dart';
 
@@ -295,6 +296,8 @@ class DownloadManager {
                 onProgress: (bytes, done, total) => _progress(d, bytes, done, total),
               );
         final subs = fetchSubtitles ? await _downloadSubs(s, base, token) : <DownloadedSub>[];
+        final ko = fetchSubtitles ? await _downloadKoreanSub(d, base) : null;
+        if (ko != null) subs.add(ko);
         final remuxed = await _maybeRemux(result.path);
         final cur = db.download(d.key) ?? d;
         cur
@@ -355,6 +358,22 @@ class DownloadManager {
       }
     }
     return out;
+  }
+
+  /// Saves a Korean fansub next to the episode (`<base>.ko-fansub.<ext>`) so it
+  /// plays offline. Best effort: a miss never fails the download.
+  Future<DownloadedSub?> _downloadKoreanSub(DownloadRecord d, String base) async {
+    if (!settings().autoKoreanSubs) return null;
+    try {
+      final found = await lookupKoreanSub(dio: dio, db: db, slug: d.slug, malId: d.malId, episode: d.episode);
+      if (found == null) return null;
+      final path = '$base.ko-fansub${found.subtitle.ext}';
+      await File(path).writeAsString(found.subtitle.text);
+      return DownloadedSub(path: path, label: found.label, language: 'ko');
+    } catch (e) {
+      Log.d('dl', 'Korean subtitle for ${d.slug} E${d.episode} failed: $e');
+      return null;
+    }
   }
 
   Future<String> _maybeRemux(String path) => remuxToMp4(path);

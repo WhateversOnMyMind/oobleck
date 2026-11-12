@@ -62,7 +62,8 @@ in two attempts). The same tests pass locally with libmpv 0.37 + ffmpeg. The job
 ## How to test each feature
 - Library: download an episode from a show page (download icon), open the Library tab, tap the poster, tap the episode, turn Wi-Fi off
 - Resume: watch a minute, back out, reopen: toast "Resumed at …"; Home shows it under Continue watching
-- Korean subs: in the player, CC > Find Korean subs. The search box starts with the Korean title found via the show's Japanese title (AniList by MAL id)
+- Korean subs: automatic. Open an episode and a Korean fansub is found, saved and turned on ("Korean subtitles · <fansubber>"); downloads save it next to the video. Manual fallback: CC > Search Korean subs manually. Live check: `OOBLECK_LIVE=1 flutter test test/korean_auto_live_test.dart`
+- Subtitle sync: CC > Style & timing, in ms (G / H keys, Shift for 1 s). Saved per season, applied to Korean/imported subtitles only
 - Anime4K: CC bar sparkle icon
 
 ## Blocked / TODO
