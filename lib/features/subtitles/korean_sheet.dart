@@ -9,6 +9,8 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../app/providers.dart';
 import '../../app/theme.dart';
+import '../../core/log.dart';
+import '../../core/subtitles/anime_titles.dart';
 import '../../core/subtitles/anissia.dart';
 import '../../core/subtitles/opensubtitles.dart';
 import '../../core/subtitles/subtitle_import.dart';
@@ -68,7 +70,50 @@ class _KoreanSheetState extends ConsumerState<_KoreanSheet> {
       _chosen = AnissiaAnime(animeNo: saved['animeNo'] as int, subject: saved['subject'] as String, originalSubject: '');
       unawaited(_loadCaptions());
     } else {
-      unawaited(_search());
+      unawaited(_autoSearch());
+    }
+  }
+
+  /// First search: Anissia barely matches English titles, so look up the
+  /// Japanese title (and any Korean synonym) by MAL id and try those, then
+  /// show the best match's Korean title in the search box.
+  Future<void> _autoSearch() async {
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      final mal = widget.session.malId;
+      var titles = const AnimeTitles();
+      if (mal != null) {
+        try {
+          titles = await AnimeTitles.forMal(ref.read(dioProvider), mal);
+        } catch (e) {
+          Log.d('subs', 'AniList title lookup failed: $e');
+        }
+      }
+      for (final q in anissiaQueries(titles, fallback: _query.text)) {
+        List<AnissiaAnime> r;
+        try {
+          r = await _anissia.search(q);
+        } catch (e) {
+          Log.d('subs', 'Anissia search "$q" failed: $e');
+          continue;
+        }
+        if (r.isEmpty) continue;
+        r = rankMatches(r, subject: (a) => a.subject, original: (a) => a.originalSubject, native: titles.native);
+        if (!mounted) return;
+        setState(() {
+          _matches = r;
+          _query.text = r.first.subject;
+        });
+        return;
+      }
+      if (mounted) setState(() => _matches = const []);
+    } catch (_) {
+      if (mounted) setState(() => _error = "Couldn't reach Anissia. Check your connection.");
+    } finally {
+      if (mounted) setState(() => _busy = false);
     }
   }
 
@@ -271,7 +316,10 @@ class _KoreanSheetState extends ConsumerState<_KoreanSheet> {
         for (final a in _matches ?? const <AnissiaAnime>[])
           ListTile(
             title: Text(a.subject),
-            subtitle: Text(a.originalSubject.isEmpty ? '${a.captionCount} subtitle posts' : '${a.originalSubject} · ${a.captionCount} posts'),
+            subtitle: Text([
+              if (a.originalSubject.isNotEmpty) a.originalSubject,
+              a.captionCount == 1 ? '1 subtitle post' : '${a.captionCount} subtitle posts',
+            ].join(' · ')),
             onTap: () => _choose(a),
           ),
         if (_matches != null && _matches!.isNotEmpty)

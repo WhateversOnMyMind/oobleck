@@ -505,10 +505,16 @@ class PlayerSession extends ChangeNotifier {
     if (r != null) await player.seek(Duration(milliseconds: (r.end * 1000).round()));
   }
 
-  Future<void> _loadSkipTimes() async {
-    if (intro != null && outro != null) return;
+  /// MyAnimeList id of the current show, from the stored episode or show.
+  String? get malId {
     final ep = db.episodes(request.slug).where((e) => e.number == request.episode).firstOrNull;
     final mal = ep?.malId ?? db.show(request.slug)?.malId;
+    return mal == null || mal.isEmpty ? null : mal;
+  }
+
+  Future<void> _loadSkipTimes() async {
+    if (intro != null && outro != null) return;
+    final mal = malId;
     final n = int.tryParse(request.episode);
     if (mal == null || mal.isEmpty || n == null) return;
     final id = _loadId;
