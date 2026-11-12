@@ -129,7 +129,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> with WidgetsBinding
               // desktop uses mpv/libass so ASS styling is kept. Sized from the
               // screen height so 4:3 shows get the same size as 16:9 ones.
               subtitleViewConfiguration: SubtitleViewConfiguration(
-                visible: Platform.isAndroid,
+                visible: _mobile,
                 textScaler: TextScaler.linear(subtitleTextScale(box.biggest)),
                 style: TextStyle(
                   height: 1.3,

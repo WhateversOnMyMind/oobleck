@@ -117,7 +117,8 @@ class SettingsScreen extends ConsumerWidget {
             future: ref.read(downloadManagerProvider).downloadRoot(),
             builder: (c, snap) => Text(snap.data ?? '…'),
           ),
-          trailing: TextButton(
+          // iOS keeps downloads in the app's Documents folder (shown in Files).
+          trailing: Platform.isIOS ? null : TextButton(
             child: const Text('Change'),
             onPressed: () async {
               final dir = await FilePicker.getDirectoryPath();
@@ -185,7 +186,7 @@ class SettingsScreen extends ConsumerWidget {
         ListTile(
           leading: const Icon(Icons.info_outline_rounded),
           title: const Text('Oobleck'),
-          subtitle: Text('Personal anime player · ${Platform.isWindows ? 'Windows' : 'Android'}'),
+          subtitle: Text('Personal anime player · ${Platform.isWindows ? 'Windows' : Platform.isIOS ? 'iOS' : 'Android'}'),
         ),
         const SizedBox(height: Gap.xl),
       ]),

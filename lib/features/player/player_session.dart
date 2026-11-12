@@ -44,7 +44,8 @@ class PlayerSession extends ChangeNotifier {
     player = Player(
       configuration: PlayerConfiguration(
         title: 'Oobleck',
-        libass: !Platform.isAndroid,
+        // Phones draw subtitles in Flutter (system fonts cover CJK).
+        libass: !(Platform.isAndroid || Platform.isIOS),
         bufferSize: 64 * 1024 * 1024,
         // Warnings include shader compile errors (Anime4K), which mpv otherwise drops silently.
         logLevel: MPVLogLevel.warn,

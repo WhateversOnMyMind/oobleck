@@ -5,6 +5,7 @@ analyzer:
     - build/**
     - android/**
     - windows/**
+    - ios/**
   errors:
     unused_import: error
 

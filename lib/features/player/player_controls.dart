@@ -761,7 +761,7 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
           _option(ctx, pr.$2, s.anime4kPreset == pr.$1, () {
             unawaited(ref.read(settingsProvider.notifier).set('anime4k', pr.$1));
             unawaited(s.applyAnime4K(pr.$1));
-            if (pr.$1 != 'off' && Platform.isAndroid && !st.anime4kNoteShown) {
+            if (pr.$1 != 'off' && _mobile && !st.anime4kNoteShown) {
               unawaited(ref.read(settingsProvider.notifier).set('anime4kNoteShown', true));
               s.showToast('Anime4K is GPU-heavy on phones. Turn it off if playback stutters.');
             }
