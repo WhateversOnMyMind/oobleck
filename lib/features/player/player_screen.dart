@@ -90,9 +90,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> with WidgetsBinding
     try {
       final saved = await importSubtitleFile(path, session, ref.read(supportDirProvider));
       await session.addExternalSubtitle(saved, p.basenameWithoutExtension(path));
-      session.showToast('Subtitles loaded');
+      session.showToast(session.strings.subtitlesLoaded);
     } catch (_) {
-      session.showToast("Couldn't read that subtitle file.");
+      session.showToast(session.strings.cantReadSubtitle);
     }
   }
 

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/providers.dart';
+import '../../app/strings.dart';
 import '../../app/theme.dart';
 import '../../core/downloads/download_manager.dart';
 import '../../core/models.dart';
@@ -74,6 +75,7 @@ class _ShowScreenState extends ConsumerState<ShowScreen> {
     final eps = b.episodes;
     final hasDub = eps.any((e) => e.hasDub);
     final t = Theme.of(context).textTheme;
+    final tr = Strings.of(context);
 
     // Resume target: most recently watched unfinished episode, else the first unwatched.
     EpisodeInfo? target;
@@ -92,17 +94,17 @@ class _ShowScreenState extends ConsumerState<ShowScreen> {
           pinned: true,
           expandedHeight: 280,
           leading: BackButton(onPressed: () => _selected.isNotEmpty ? setState(_selected.clear) : Navigator.of(context).pop()),
-          title: _selected.isNotEmpty ? Text('${_selected.length} selected') : null,
+          title: _selected.isNotEmpty ? Text(tr.selectedCount(_selected.length)) : null,
           actions: [
             if (_selected.isNotEmpty)
               TextButton.icon(
                 onPressed: () => _downloadSelected(b, type),
                 icon: const Icon(Icons.download_rounded),
-                label: const Text('Download'),
+                label: Text(tr.download),
               )
             else if (!offline && eps.isNotEmpty)
               IconButton(
-                tooltip: 'Download episodes',
+                tooltip: tr.downloadEpisodes,
                 icon: const Icon(Icons.download_rounded),
                 onPressed: () => _showBatchSheet(b, type),
               ),
@@ -135,7 +137,7 @@ class _ShowScreenState extends ConsumerState<ShowScreen> {
                   child: Row(children: [
                     const Icon(Icons.cloud_off_rounded, size: 16, color: Colors.white54),
                     const SizedBox(width: 6),
-                    Text("You're offline. Showing saved info.", style: t.bodySmall?.copyWith(color: Colors.white54)),
+                    Text(tr.offlineSavedInfo, style: t.bodySmall?.copyWith(color: Colors.white54)),
                   ]),
                 ),
               if (b.detail.synopsis.isNotEmpty)
@@ -161,19 +163,19 @@ class _ShowScreenState extends ConsumerState<ShowScreen> {
                         : () => _play(b, target!.number, type),
                     icon: const Icon(Icons.play_arrow_rounded),
                     label: Text(target == null
-                        ? 'No episodes'
+                        ? tr.noEpisodes
                         : (targetHist?.isPartial ?? false)
-                            ? 'Resume episode ${target.number}'
-                            : 'Play episode ${target.number}'),
+                            ? tr.resumeEpisode(target.number)
+                            : tr.playEpisode(target.number)),
                   ),
                 ),
                 if (hasDub) ...[
                   const SizedBox(width: Gap.m),
                   SegmentedButton<AudioType>(
                     showSelectedIcon: false,
-                    segments: const [
-                      ButtonSegment(value: AudioType.sub, label: Text('Sub')),
-                      ButtonSegment(value: AudioType.dub, label: Text('Dub')),
+                    segments: [
+                      ButtonSegment(value: AudioType.sub, label: Text(tr.sub)),
+                      ButtonSegment(value: AudioType.dub, label: Text(tr.dub)),
                     ],
                     selected: {type},
                     onSelectionChanged: (s) => setState(() => _type = s.first),
@@ -181,14 +183,14 @@ class _ShowScreenState extends ConsumerState<ShowScreen> {
                 ],
               ]),
               const SizedBox(height: Gap.m),
-              Text('Episodes · ${eps.length}', style: t.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+              Text(tr.episodesHeader(eps.length), style: t.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
               const SizedBox(height: Gap.s),
             ]),
           ),
         ),
         if (eps.isEmpty)
-          const SliverToBoxAdapter(
-            child: SizedBox(height: 220, child: EmptyState(icon: Icons.movie_filter_outlined, title: 'No episodes yet', message: 'Check back later.')),
+          SliverToBoxAdapter(
+            child: SizedBox(height: 220, child: EmptyState(icon: Icons.movie_filter_outlined, title: tr.noEpisodesYet, message: tr.checkBackLater)),
           )
         else
           SliverList.builder(
@@ -235,7 +237,7 @@ class _ShowScreenState extends ConsumerState<ShowScreen> {
     await ref.read(downloadManagerProvider).enqueue(b.detail, eps, type, quality ?? settings.quality);
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(eps.length == 1 ? 'Added episode ${eps.first.number} to downloads' : 'Added ${eps.length} episodes to downloads'),
+      content: Text(Strings.of(context).addedEpisodes([for (final e in eps) e.number])),
     ));
   }
 
@@ -247,6 +249,7 @@ class _ShowScreenState extends ConsumerState<ShowScreen> {
     var to = nums.last.toInt();
     var audio = type;
     var quality = settings.quality;
+    final tr = Strings.of(context);
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -254,14 +257,14 @@ class _ShowScreenState extends ConsumerState<ShowScreen> {
         builder: (ctx, setSheet) => Padding(
           padding: EdgeInsets.fromLTRB(Gap.m, 0, Gap.m, MediaQuery.of(ctx).viewInsets.bottom + Gap.l),
           child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('Download episodes', style: Theme.of(ctx).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
+            Text(tr.downloadEpisodes, style: Theme.of(ctx).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
             const SizedBox(height: Gap.m),
             Wrap(spacing: 8, children: [
-              ActionChip(label: const Text('Whole season'), onPressed: () => setSheet(() {
+              ActionChip(label: Text(tr.wholeSeason), onPressed: () => setSheet(() {
                     from = nums.first.toInt();
                     to = nums.last.toInt();
                   })),
-              ActionChip(label: const Text('Unwatched'), onPressed: () {
+              ActionChip(label: Text(tr.unwatched), onPressed: () {
                 final h = {for (final x in ref.read(historyProvider).value ?? const <HistoryEntry>[]) if (x.slug == widget.slug) x.episode: x};
                 final un = eps.where((e) => !(h[e.number]?.isFinished ?? false)).toList();
                 Navigator.pop(ctx);
@@ -275,7 +278,7 @@ class _ShowScreenState extends ConsumerState<ShowScreen> {
                   key: ValueKey('from$from'),
                   initialValue: '$from',
                   keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: 'From episode'),
+                  decoration: InputDecoration(labelText: tr.fromEpisode),
                   onChanged: (v) => from = int.tryParse(v) ?? from,
                 ),
               ),
@@ -285,7 +288,7 @@ class _ShowScreenState extends ConsumerState<ShowScreen> {
                   key: ValueKey('to$to'),
                   initialValue: '$to',
                   keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: 'To episode'),
+                  decoration: InputDecoration(labelText: tr.toEpisode),
                   onChanged: (v) => to = int.tryParse(v) ?? to,
                 ),
               ),
@@ -294,9 +297,9 @@ class _ShowScreenState extends ConsumerState<ShowScreen> {
             Row(children: [
               SegmentedButton<AudioType>(
                 showSelectedIcon: false,
-                segments: const [
-                  ButtonSegment(value: AudioType.sub, label: Text('Sub')),
-                  ButtonSegment(value: AudioType.dub, label: Text('Dub')),
+                segments: [
+                  ButtonSegment(value: AudioType.sub, label: Text(tr.sub)),
+                  ButtonSegment(value: AudioType.dub, label: Text(tr.dub)),
                 ],
                 selected: {audio},
                 onSelectionChanged: (s) => setSheet(() => audio = s.first),
@@ -305,12 +308,12 @@ class _ShowScreenState extends ConsumerState<ShowScreen> {
               DropdownButton<String>(
                 value: quality,
                 underline: const SizedBox.shrink(),
-                items: const [
-                  DropdownMenuItem(value: 'best', child: Text('Best quality')),
-                  DropdownMenuItem(value: '1080', child: Text('1080p')),
-                  DropdownMenuItem(value: '720', child: Text('720p')),
-                  DropdownMenuItem(value: '480', child: Text('480p')),
-                  DropdownMenuItem(value: '360', child: Text('360p')),
+                items: [
+                  DropdownMenuItem(value: 'best', child: Text(tr.bestQuality)),
+                  const DropdownMenuItem(value: '1080', child: Text('1080p')),
+                  const DropdownMenuItem(value: '720', child: Text('720p')),
+                  const DropdownMenuItem(value: '480', child: Text('480p')),
+                  const DropdownMenuItem(value: '360', child: Text('360p')),
                 ],
                 onChanged: (v) => setSheet(() => quality = v ?? quality),
               ),
@@ -320,7 +323,7 @@ class _ShowScreenState extends ConsumerState<ShowScreen> {
               width: double.infinity,
               child: FilledButton.icon(
                 icon: const Icon(Icons.download_rounded),
-                label: const Text('Add to downloads'),
+                label: Text(tr.addToDownloads),
                 onPressed: () {
                   final chosen = eps.where((e) => e.numeric >= from && e.numeric <= to).toList();
                   Navigator.pop(ctx);
@@ -361,6 +364,7 @@ class _EpisodeTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
+    final tr = Strings.of(context);
     final watched = history?.isFinished ?? false;
     final partial = history?.isPartial ?? false;
     return Opacity(
@@ -385,16 +389,16 @@ class _EpisodeTile extends StatelessWidget {
               const SizedBox(width: Gap.m),
               Expanded(
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(episode.displayTitle,
+                  Text(episode.title.isEmpty ? tr.episode(episode.number) : episode.title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: t.bodyLarge?.copyWith(fontWeight: FontWeight.w600, color: watched ? Colors.white54 : Colors.white)),
                   const SizedBox(height: 2),
                   Row(children: [
-                    if (episode.isFiller) _tag(context, 'Filler', Colors.orangeAccent),
-                    if (dubUnavailable) _tag(context, 'No dub', Colors.white38),
-                    if (download != null && download!.isDone) _tag(context, 'Downloaded', kAccent),
-                    if (download != null && !download!.isDone) _tag(context, _dlLabel(download!), Colors.white54),
+                    if (episode.isFiller) _tag(context, tr.filler, Colors.orangeAccent),
+                    if (dubUnavailable) _tag(context, tr.noDub, Colors.white38),
+                    if (download != null && download!.isDone) _tag(context, tr.downloaded, kAccent),
+                    if (download != null && !download!.isDone) _tag(context, _dlLabel(download!, tr), Colors.white54),
                   ]),
                   if (partial)
                     Padding(
@@ -409,7 +413,7 @@ class _EpisodeTile extends StatelessWidget {
               if (watched) const Icon(Icons.check_circle_rounded, color: kAccent, size: 20),
               if (!selecting && onDownload != null && download == null)
                 IconButton(
-                  tooltip: 'Download',
+                  tooltip: tr.download,
                   icon: const Icon(Icons.download_rounded, size: 22),
                   onPressed: onDownload,
                 ),
@@ -420,12 +424,12 @@ class _EpisodeTile extends StatelessWidget {
     );
   }
 
-  String _dlLabel(DownloadRecord d) => switch (d.status) {
-        DownloadStatus.queued => 'Queued',
-        DownloadStatus.downloading => 'Downloading ${(d.progress * 100).round()}%',
-        DownloadStatus.paused => 'Paused',
-        DownloadStatus.failed => 'Failed',
-        DownloadStatus.done => 'Downloaded',
+  String _dlLabel(DownloadRecord d, Strings tr) => switch (d.status) {
+        DownloadStatus.queued => tr.queued,
+        DownloadStatus.downloading => tr.downloadingPct((d.progress * 100).round()),
+        DownloadStatus.paused => tr.paused,
+        DownloadStatus.failed => tr.failed,
+        DownloadStatus.done => tr.downloaded,
       };
 
   Widget _tag(BuildContext context, String text, Color color) => Padding(

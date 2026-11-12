@@ -8,6 +8,7 @@ import 'package:path/path.dart' as p;
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../app/providers.dart';
+import '../../app/strings.dart';
 import '../../app/theme.dart';
 import '../../core/log.dart';
 import '../../core/subtitles/anime_titles.dart';
@@ -111,11 +112,13 @@ class _KoreanSheetState extends ConsumerState<_KoreanSheet> {
       }
       if (mounted) setState(() => _matches = const []);
     } catch (_) {
-      if (mounted) setState(() => _error = "Couldn't reach Anissia. Check your connection.");
+      if (mounted) setState(() => _error = tr.errAnissia);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
   }
+
+  Strings get tr => Strings.of(context);
 
   @override
   void dispose() {
@@ -132,7 +135,7 @@ class _KoreanSheetState extends ConsumerState<_KoreanSheet> {
       final r = await _anissia.search(_query.text.trim());
       if (mounted) setState(() => _matches = r);
     } catch (_) {
-      if (mounted) setState(() => _error = "Couldn't reach Anissia. Check your connection.");
+      if (mounted) setState(() => _error = tr.errAnissia);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -153,7 +156,7 @@ class _KoreanSheetState extends ConsumerState<_KoreanSheet> {
       final c = await _anissia.captions(_chosen!.animeNo);
       if (mounted) setState(() => _captions = c);
     } catch (_) {
-      if (mounted) setState(() => _error = "Couldn't load subtitle posts.");
+      if (mounted) setState(() => _error = tr.errSubPosts);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -180,7 +183,7 @@ class _KoreanSheetState extends ConsumerState<_KoreanSheet> {
       }
       SubAttachment pick = attachments.first;
       if (attachments.length > 1) {
-        final chosen = await _pickOne<SubAttachment>('Choose a file', attachments, (a) => a.name);
+        final chosen = await _pickOne<SubAttachment>(tr.chooseFile, attachments, (a) => a.name);
         if (chosen == null) return;
         pick = chosen;
       }
@@ -191,7 +194,7 @@ class _KoreanSheetState extends ConsumerState<_KoreanSheet> {
       }
       var name = pickForEpisode(files.keys.toList(), int.tryParse(episode) ?? -1);
       if (name == null) {
-        name = await _pickOne<String>('Which file is episode $episode?', files.keys.toList(), (n) => p.basename(n));
+        name = await _pickOne<String>(tr.whichFileForEpisode(episode), files.keys.toList(), (n) => p.basename(n));
         if (name == null) return;
       }
       final prepared = prepareSubtitle(files[name]!, name);
@@ -209,11 +212,11 @@ class _KoreanSheetState extends ConsumerState<_KoreanSheet> {
     final act = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text("Can't import this automatically"),
-        content: const Text('Open the post in your browser, download the subtitle file, then import it from your files.'),
+        title: Text(tr.cantImportAuto),
+        content: Text(tr.cantImportAutoBody),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, 'browser'), child: const Text('Open post')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, 'file'), child: const Text('Import from file…')),
+          TextButton(onPressed: () => Navigator.pop(ctx, 'browser'), child: Text(tr.openPost)),
+          FilledButton(onPressed: () => Navigator.pop(ctx, 'file'), child: Text(tr.importFromFile)),
         ],
       ),
     );
@@ -227,7 +230,7 @@ class _KoreanSheetState extends ConsumerState<_KoreanSheet> {
           ? unzipSubtitles(await _read(path))
           : {p.basename(path): await _read(path)};
       if (files.isEmpty) return;
-      final name = files.length == 1 ? files.keys.first : await _pickOne<String>('Which file?', files.keys.toList(), p.basename);
+      final name = files.length == 1 ? files.keys.first : await _pickOne<String>(tr.whichFile, files.keys.toList(), p.basename);
       if (name == null) return;
       final prepared = prepareSubtitle(files[name]!, name);
       final out = await saveSubtitle(prepared, ref.read(supportDirProvider), slug, episode);
@@ -259,7 +262,7 @@ class _KoreanSheetState extends ConsumerState<_KoreanSheet> {
       final r = await os.search(widget.session.request.showTitle, int.tryParse(episode) ?? 1);
       if (mounted) setState(() => _osResults = r);
     } catch (_) {
-      if (mounted) setState(() => _error = "OpenSubtitles didn't respond. Check your API key in Settings.");
+      if (mounted) setState(() => _error = tr.errOpenSubtitles);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -276,7 +279,7 @@ class _KoreanSheetState extends ConsumerState<_KoreanSheet> {
       await widget.onLoaded(path, 'Korean · OpenSubtitles');
       if (mounted) Navigator.pop(context);
     } catch (_) {
-      if (mounted) setState(() => _error = "Couldn't download that file. OpenSubtitles may need your account login in Settings.");
+      if (mounted) setState(() => _error = tr.errOsDownload);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -292,9 +295,9 @@ class _KoreanSheetState extends ConsumerState<_KoreanSheet> {
         : (_showAll ? _captions! : _captions!.where((c) => c.number == epNum).toList());
 
     return ListView(controller: widget.scroll, padding: const EdgeInsets.fromLTRB(20, 0, 20, 24), children: [
-      Text('Find Korean subtitles', style: t.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
+      Text(tr.findKoreanSubs, style: t.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
       const SizedBox(height: 4),
-      Text('Episode $episode · fansub posts from Anissia', style: t.bodySmall?.copyWith(color: Colors.white60)),
+      Text(tr.anissiaHeader(episode), style: t.bodySmall?.copyWith(color: Colors.white60)),
       if (_busy) const Padding(padding: EdgeInsets.only(top: 12), child: LinearProgressIndicator(minHeight: 2)),
       if (_error != null) Padding(padding: const EdgeInsets.only(top: 12), child: Text(_error!, style: const TextStyle(color: Colors.redAccent))),
       const SizedBox(height: Gap.m),
@@ -304,7 +307,7 @@ class _KoreanSheetState extends ConsumerState<_KoreanSheet> {
             child: TextField(
               controller: _query,
               onSubmitted: (_) => _search(),
-              decoration: const InputDecoration(hintText: 'Title (Korean or Japanese works best)'),
+              decoration: InputDecoration(hintText: tr.titleHint),
             ),
           ),
           const SizedBox(width: 8),
@@ -312,35 +315,35 @@ class _KoreanSheetState extends ConsumerState<_KoreanSheet> {
         ]),
         const SizedBox(height: Gap.s),
         if (_matches != null && _matches!.isEmpty)
-          const Padding(padding: EdgeInsets.all(12), child: Text('No match. Try the Japanese or Korean title.', style: TextStyle(color: Colors.white60))),
+          Padding(padding: const EdgeInsets.all(12), child: Text(tr.noMatch, style: const TextStyle(color: Colors.white60))),
         for (final a in _matches ?? const <AnissiaAnime>[])
           ListTile(
             title: Text(a.subject),
             subtitle: Text([
               if (a.originalSubject.isNotEmpty) a.originalSubject,
-              a.captionCount == 1 ? '1 subtitle post' : '${a.captionCount} subtitle posts',
+              tr.subtitlePosts(a.captionCount),
             ].join(' · ')),
             onTap: () => _choose(a),
           ),
         if (_matches != null && _matches!.isNotEmpty)
-          const Padding(padding: EdgeInsets.all(8), child: Text("Pick the right show once. We'll remember it.", style: TextStyle(color: Colors.white54, fontSize: 12))),
+          Padding(padding: const EdgeInsets.all(8), child: Text(tr.pickShowOnce, style: const TextStyle(color: Colors.white54, fontSize: 12))),
       ] else ...[
         Row(children: [
           Expanded(child: Text(_chosen!.subject, style: t.titleSmall?.copyWith(fontWeight: FontWeight.w700))),
-          TextButton(onPressed: _changeMatch, child: const Text('Change')),
+          TextButton(onPressed: _changeMatch, child: Text(tr.change)),
         ]),
-        SwitchListTile(dense: true, contentPadding: EdgeInsets.zero, title: const Text('Show all episodes'), value: _showAll, onChanged: (v) => setState(() => _showAll = v)),
+        SwitchListTile(dense: true, contentPadding: EdgeInsets.zero, title: Text(tr.showAllEpisodes), value: _showAll, onChanged: (v) => setState(() => _showAll = v)),
         if (_captions != null && caps.isEmpty)
-          const Padding(
-            padding: EdgeInsets.all(12),
-            child: Text('No Korean fansub post for this episode yet. Subtitles are often released a few hours after broadcast.', style: TextStyle(color: Colors.white60)),
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Text(tr.noFansubYet, style: const TextStyle(color: Colors.white60)),
           ),
         for (final c in caps)
           Card(
             margin: const EdgeInsets.only(bottom: 8),
             child: ListTile(
               leading: CircleAvatar(backgroundColor: kAccent.withValues(alpha: 0.2), child: Text(c.episode, style: const TextStyle(fontWeight: FontWeight.w700))),
-              title: Text(c.name.isEmpty ? 'Unknown fansubber' : c.name),
+              title: Text(c.name.isEmpty ? tr.unknownFansubber : c.name),
               subtitle: Text(c.updated.length >= 10 ? c.updated.substring(0, 10) : c.updated),
               trailing: const Icon(Icons.download_rounded),
               onTap: _busy ? null : () => _import(c),
@@ -351,23 +354,23 @@ class _KoreanSheetState extends ConsumerState<_KoreanSheet> {
       ListTile(
         contentPadding: EdgeInsets.zero,
         leading: const Icon(Icons.upload_file_rounded),
-        title: const Text('Import from file…'),
-        subtitle: const Text('.smi, .srt, .ass, .vtt or a .zip'),
+        title: Text(tr.importFromFile),
+        subtitle: Text(tr.subFileTypes),
         onTap: () => _browserFallbackFile(),
       ),
       if (hasOs) ...[
         ListTile(
           contentPadding: EdgeInsets.zero,
           leading: const Icon(Icons.subtitles_outlined),
-          title: const Text('Search OpenSubtitles'),
+          title: Text(tr.searchOpenSubtitles),
           onTap: _busy ? null : _searchOpenSubtitles,
         ),
         for (final r in _osResults ?? const <OpenSubtitlesResult>[])
-          ListTile(title: Text(r.release.isEmpty ? r.fileName : r.release, maxLines: 2, overflow: TextOverflow.ellipsis), subtitle: Text('${r.downloads} downloads'), onTap: () => _importOs(r)),
+          ListTile(title: Text(r.release.isEmpty ? r.fileName : r.release, maxLines: 2, overflow: TextOverflow.ellipsis), subtitle: Text(tr.downloadsCount(r.downloads)), onTap: () => _importOs(r)),
       ] else
-        const Padding(
-          padding: EdgeInsets.symmetric(vertical: 4),
-          child: Text('Add a free OpenSubtitles API key in Settings to search there too.', style: TextStyle(color: Colors.white54, fontSize: 12)),
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: Text(tr.addOsKey, style: const TextStyle(color: Colors.white54, fontSize: 12)),
         ),
     ]);
   }
@@ -379,7 +382,7 @@ class _KoreanSheetState extends ConsumerState<_KoreanSheet> {
     final bytes = await _read(path);
     final files = path.toLowerCase().endsWith('.zip') ? unzipSubtitles(bytes) : {p.basename(path): bytes};
     if (files.isEmpty || !mounted) return;
-    final name = files.length == 1 ? files.keys.first : await _pickOne<String>('Which file is episode $episode?', files.keys.toList(), p.basename);
+    final name = files.length == 1 ? files.keys.first : await _pickOne<String>(tr.whichFileForEpisode(episode), files.keys.toList(), p.basename);
     if (name == null) return;
     final out = await saveSubtitle(prepareSubtitle(files[name]!, name), ref.read(supportDirProvider), slug, episode);
     await widget.onLoaded(out, 'Korean · imported');

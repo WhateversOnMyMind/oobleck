@@ -17,3 +17,6 @@
 - 2026-11-12: Android (Flutter-drawn) subtitle size = size setting x screen height / 720 x 0.75, matching mpv's 720p-relative font size on desktop; the default 46 gives ~20 dp on a phone. Fit mode is per show because only old 4:3 shows need it.
 - 2026-11-12: Sync accounts are user ID + password. The app stretches the password (PBKDF2-SHA256, 100k rounds, salt = user ID) and the Worker stores SHA-256(salt + key): Workers' free plan has ~10 ms CPU per request, too little for server-side PBKDF2, and the guess cost stays with the attacker. No password reset (no e-mail).
 - 2026-11-12: Sync is last-write-wins per episode on the client's `updatedAt`; clears are tombstones with the client time, so stale uploads from other devices cannot resurrect cleared history. The server URL comes from `--dart-define=OOBLECK_SYNC_URL` (repo variable) or the sign-in dialog, never committed.
+- 2026-11-12: UI text is one `Strings` class with English and Korean side by side per entry (not ARB/gen-l10n): no codegen, both languages can't drift apart, and non-widget code (player toasts) can use it via the language setting.
+- 2026-11-12: The first launch shows a language picker until a language is saved; existing installs see it once after updating.
+- 2026-11-12: iOS builds unsigned in CI (no Apple account in the repo); installing needs sideloading with the owner's Apple ID.

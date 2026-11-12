@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 
+import '../app/strings.dart';
 import '../app/theme.dart';
 
 /// Animated placeholder block used instead of spinners.
@@ -200,7 +201,7 @@ class EmptyState extends StatelessWidget {
             ],
             if (onAction != null) ...[
               const SizedBox(height: Gap.m),
-              FilledButton(onPressed: onAction, child: Text(actionLabel ?? 'Retry')),
+              FilledButton(onPressed: onAction, child: Text(actionLabel ?? Strings.of(context).retry)),
             ],
           ]),
         ),
@@ -215,25 +216,28 @@ class ErrorState extends StatelessWidget {
   final Object error;
   final VoidCallback? onRetry;
 
-  static String friendly(Object e) {
-    final s = e.toString().toLowerCase();
-    if (s.contains('socket') || s.contains('connection') || s.contains('timeout') || s.contains('host lookup')) {
-      return 'Check your internet connection and try again.';
+  static String friendly(Object e, [Strings s = Strings.en]) {
+    final m = e.toString().toLowerCase();
+    if (m.contains('socket') || m.contains('connection') || m.contains('timeout') || m.contains('host lookup')) {
+      return s.errNetwork;
     }
-    if (s.contains('403') || s.contains('challenge') || s.contains('cloudflare')) {
-      return 'The site refused the request. Try again in a moment.';
+    if (m.contains('403') || m.contains('challenge') || m.contains('cloudflare')) {
+      return s.errRefused;
     }
-    return 'Something went wrong while loading this. Try again.';
+    return s.errGeneric;
   }
 
   @override
-  Widget build(BuildContext context) => EmptyState(
-        icon: Icons.cloud_off_rounded,
-        title: "Couldn't load",
-        message: friendly(error),
-        actionLabel: 'Retry',
-        onAction: onRetry,
-      );
+  Widget build(BuildContext context) {
+    final s = Strings.of(context);
+    return EmptyState(
+      icon: Icons.cloud_off_rounded,
+      title: s.couldntLoad,
+      message: friendly(error, s),
+      actionLabel: s.retry,
+      onAction: onRetry,
+    );
+  }
 }
 
 String formatDuration(Duration d) {

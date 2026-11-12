@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/providers.dart';
+import '../../app/strings.dart';
 import '../../app/theme.dart';
 import '../../core/models.dart';
 import '../../core/storage/app_db.dart';
@@ -18,6 +19,7 @@ class HomeScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final cont = ref.watch(continueWatchingProvider);
     final home = ref.watch(homeProvider);
+    final s = Strings.of(context);
     return RefreshIndicator(
       onRefresh: () async => ref.refresh(homeProvider.future),
       child: CustomScrollView(
@@ -28,7 +30,7 @@ class HomeScreen extends ConsumerWidget {
             actions: [HomeSyncButton()],
           ),
           if (cont.isNotEmpty) ...[
-            const SliverToBoxAdapter(child: SectionHeader('Continue watching')),
+            SliverToBoxAdapter(child: SectionHeader(s.continueWatching)),
             SliverToBoxAdapter(child: _ContinueRow(items: cont)),
           ],
           ...home.when(
@@ -44,14 +46,14 @@ class HomeScreen extends ConsumerWidget {
             ],
             data: (sections) => [
               if (sections.isEmpty)
-                const SliverToBoxAdapter(
+                SliverToBoxAdapter(
                   child: SizedBox(
                     height: 320,
-                    child: EmptyState(icon: Icons.explore_outlined, title: 'Nothing to show yet', message: 'Pull down to refresh.'),
+                    child: EmptyState(icon: Icons.explore_outlined, title: s.nothingToShow, message: s.pullToRefresh),
                   ),
                 ),
               for (final e in sections.entries) ...[
-                SliverToBoxAdapter(child: SectionHeader(e.key)),
+                SliverToBoxAdapter(child: SectionHeader(s.section(e.key))),
                 SliverToBoxAdapter(child: _ShowRow(shows: e.value)),
               ],
             ],
@@ -170,6 +172,7 @@ class ContinueCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
+    final s = Strings.of(context);
     return SizedBox(
       width: width,
       child: Card(
@@ -190,7 +193,7 @@ class ContinueCard extends StatelessWidget {
                   Text(item.show.title, maxLines: 2, overflow: TextOverflow.ellipsis, style: t.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
                   const SizedBox(height: 4),
                   Text(
-                    item.resumeFraction > 0 ? 'Episode ${item.episode} · resume' : 'Up next · Episode ${item.episode}',
+                    item.resumeFraction > 0 ? s.resumeLine(item.episode) : s.upNextLine(item.episode),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: t.bodySmall?.copyWith(color: Colors.white60),
@@ -200,9 +203,9 @@ class ContinueCard extends StatelessWidget {
                     fit: BoxFit.scaleDown,
                     alignment: Alignment.centerLeft,
                     child: Row(children: [
-                      _CardAction(icon: Icons.play_circle_fill_rounded, label: 'Play', accent: true, onTap: onPlay),
+                      _CardAction(icon: Icons.play_circle_fill_rounded, label: s.play, accent: true, onTap: onPlay),
                       const SizedBox(width: 4),
-                      _CardAction(icon: Icons.format_list_bulleted_rounded, label: 'Episodes', onTap: onEpisodes),
+                      _CardAction(icon: Icons.format_list_bulleted_rounded, label: s.episodesWord, onTap: onEpisodes),
                     ]),
                   ),
                   const SizedBox(height: 8),
@@ -231,7 +234,7 @@ class _CardAction extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = accent ? kAccent : Colors.white70;
     return Tooltip(
-      message: accent ? 'Resume this episode' : 'See all episodes of this season',
+      message: accent ? Strings.of(context).resumeThisEpisode : Strings.of(context).seeAllEpisodes,
       child: InkWell(
         borderRadius: BorderRadius.circular(20),
         onTap: onTap,

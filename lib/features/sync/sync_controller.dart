@@ -15,11 +15,12 @@ class SyncState {
   final String serverUrl;
   final bool syncing;
   final DateTime? lastSync;
-  final String? error;
+  /// A [SyncException] (or other error); the UI words it via `Strings.syncError`.
+  final Object? error;
 
   bool get signedIn => username != null;
 
-  SyncState copyWith({String? username, bool clearUser = false, String? serverUrl, bool? syncing, DateTime? lastSync, String? error, bool clearError = false}) =>
+  SyncState copyWith({String? username, bool clearUser = false, String? serverUrl, bool? syncing, DateTime? lastSync, Object? error, bool clearError = false}) =>
       SyncState(
         username: clearUser ? null : username ?? this.username,
         serverUrl: serverUrl ?? this.serverUrl,
@@ -144,13 +145,13 @@ class SyncController extends Notifier<SyncState> {
       if (e.signedOut) {
         await _db.setMisc(AppDb.syncTokenKey, null);
         _timer?.cancel();
-        state = SyncState(serverUrl: state.serverUrl, error: e.message);
+        state = SyncState(serverUrl: state.serverUrl, error: e);
       } else {
-        state = state.copyWith(syncing: false, error: e.message);
+        state = state.copyWith(syncing: false, error: e);
       }
     } catch (e) {
       Log.d('sync', 'failed: $e');
-      state = state.copyWith(syncing: false, error: 'Sync failed.');
+      state = state.copyWith(syncing: false, error: e);
     }
   }
 }

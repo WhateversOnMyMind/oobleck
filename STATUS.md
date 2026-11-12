@@ -43,6 +43,14 @@ chain was checked live up to the decrypted stream URL, real responses are saved 
 - Player picture mode **Fit / Zoom to fill / Stretch** (button on the control bar, key Z), saved per show, for 4:3 shows such as
   Evangelion (1440x1080). Android subtitles are now sized from the screen height (same rule as mpv on desktop) instead of
   media_kit's sqrt(area/1080p), which made them ~10 dp on phones
+- **Korean UI**: first launch asks English / 한국어 (pre-selects Korean on a Korean phone), remembered in settings,
+  changeable in Settings > Language. Every screen, dialog, toast and player message is translated
+  (`lib/app/strings.dart`); Flutter's own widgets follow via `flutter_localizations`. Not translated: the developer
+  diagnostics log, the Megaplay key settings, and error text that comes straight from the site
+- **iOS**: `ios/` project; CI builds an unsigned IPA on macOS (`oobleck-ios` artifact, first build green
+  2026-11-12). Phones draw subtitles in Flutter like Android; downloads go to the app's Documents folder (visible in
+  Files). **Not tried on a real iPhone**: install needs sideloading with the owner's Apple ID (see README)
+- Library tab renamed **Downloaded**; **Sign in** button at the top right of Home (shows the user ID once signed in)
 - **Watch-history sync** (optional): Settings → Sync → Sign in / Create account (user ID + password only). Syncs on launch,
   when the app comes back, after the player closes, every 10 min and on "Sync now"; newest progress per episode wins,
   "Clear watch history" reaches other devices. Server: Cloudflare Worker + D1 in `server/` (tests: `node --test`, and

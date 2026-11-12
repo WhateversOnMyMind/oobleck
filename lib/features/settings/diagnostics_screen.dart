@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/providers.dart';
+import '../../app/strings.dart';
 import '../../core/log.dart';
 import '../../core/models.dart';
 import '../../core/sources/anikoto/anikoto_source.dart';
@@ -79,15 +80,15 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Source diagnostics')),
+      appBar: AppBar(title: Text(Strings.of(context).sourceDiagnostics)),
       body: Column(children: [
         Padding(
           padding: const EdgeInsets.all(16),
           child: Row(children: [
-            Expanded(child: TextField(controller: _title, decoration: const InputDecoration(labelText: 'Title'))),
+            Expanded(child: TextField(controller: _title, decoration: InputDecoration(labelText: Strings.of(context).title))),
             const SizedBox(width: 8),
-            FilledButton(onPressed: _running ? null : _run, child: const Text('Run')),
-            IconButton(tooltip: 'Refresh keys', onPressed: _refreshKeys, icon: const Icon(Icons.key_rounded)),
+            FilledButton(onPressed: _running ? null : _run, child: Text(Strings.of(context).run)),
+            IconButton(tooltip: Strings.of(context).refreshKeys, onPressed: _refreshKeys, icon: const Icon(Icons.key_rounded)),
           ]),
         ),
         Expanded(
@@ -97,7 +98,7 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
               children: [
                 for (final l in _out) Text(l, style: const TextStyle(fontFamily: 'monospace', fontSize: 12.5, height: 1.5)),
                 const Divider(height: 32),
-                const Text('Recent log', style: TextStyle(fontWeight: FontWeight.w700)),
+                Text(Strings.of(context).recentLog, style: const TextStyle(fontWeight: FontWeight.w700)),
                 for (final l in Log.lines.reversed.take(60)) Text(l, style: const TextStyle(fontFamily: 'monospace', fontSize: 11.5, color: Colors.white54)),
               ],
             ),

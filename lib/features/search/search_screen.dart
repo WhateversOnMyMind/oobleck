@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/providers.dart';
+import '../../app/strings.dart';
 import '../../app/theme.dart';
 import '../../ui/widgets.dart';
 import '../home/home_screen.dart';
@@ -34,6 +35,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   @override
   Widget build(BuildContext context) {
     final results = _query.isEmpty ? null : ref.watch(searchProvider(_query));
+    final s = Strings.of(context);
     return SafeArea(
       bottom: false,
       child: Column(
@@ -46,7 +48,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               onSubmitted: (v) => setState(() => _query = v.trim()),
               textInputAction: TextInputAction.search,
               decoration: InputDecoration(
-                hintText: 'Search anime',
+                hintText: s.searchHint,
                 prefixIcon: const Icon(Icons.search_rounded),
                 suffixIcon: _controller.text.isEmpty
                     ? null
@@ -62,7 +64,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           ),
           Expanded(
             child: results == null
-                ? const EmptyState(icon: Icons.search_rounded, title: 'Find something to watch', message: 'Search by title.')
+                ? EmptyState(icon: Icons.search_rounded, title: s.findSomething, message: s.searchByTitle)
                 : results.when(
                     loading: () => GridView.builder(
                       padding: const EdgeInsets.all(Gap.m),
@@ -73,7 +75,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                     ),
                     error: (e, _) => ErrorState(error: e, onRetry: () => ref.invalidate(searchProvider(_query))),
                     data: (list) => list.isEmpty
-                        ? EmptyState(icon: Icons.sentiment_neutral_rounded, title: 'No results', message: 'Nothing matched "$_query". Try another spelling.')
+                        ? EmptyState(icon: Icons.sentiment_neutral_rounded, title: s.noResults, message: s.nothingMatched(_query))
                         : GridView.builder(
                             padding: const EdgeInsets.all(Gap.m),
                             gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(

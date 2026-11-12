@@ -8,6 +8,7 @@ import 'package:media_kit_video/media_kit_video.dart';
 import 'package:screen_brightness/screen_brightness.dart';
 
 import '../../app/providers.dart';
+import '../../app/strings.dart';
 import '../../app/theme.dart';
 import '../../core/models.dart';
 import '../../core/player/anime4k.dart';
@@ -120,6 +121,8 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
     }
   }
 
+  Strings get tr => Strings.of(context);
+
   void _showHud(IconData icon, String text) {
     _hudTimer?.cancel();
     setState(() {
@@ -200,7 +203,7 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
       final step = HardwareKeyboard.instance.isShiftPressed ? 1000 : 100;
       final ms = s.subtitleOffsetMs + (k == LogicalKeyboardKey.keyG ? -step : step);
       unawaited(s.setSubtitleOffsetMs(ms));
-      _showHud(Icons.subtitles_rounded, 'Sync ${formatOffsetMs(ms)}');
+      _showHud(Icons.subtitles_rounded, tr.syncHud(formatOffsetMs(ms)));
     } else {
       return KeyEventResult.ignored;
     }
@@ -213,7 +216,7 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
     final i = s.subtitle == null ? -1 : tracks.indexOf(s.subtitle!);
     final next = i + 1 >= tracks.length ? null : tracks[i + 1];
     unawaited(s.selectSubtitle(next));
-    _showHud(Icons.closed_caption_rounded, next?.label ?? 'Subtitles off');
+    _showHud(Icons.closed_caption_rounded, next?.label ?? tr.subtitlesOff);
   }
 
   // ---- gestures (touch) ----------------------------------------------------------
@@ -336,7 +339,7 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
           padding: EdgeInsets.fromLTRB(8 + pad.left, 8 + pad.top, 8 + pad.right, 0),
           child: Row(children: [
             IconButton(
-              tooltip: 'Back',
+              tooltip: tr.back,
               icon: const Icon(Icons.arrow_back_rounded, size: 28),
               onPressed: widget.onClose,
             ),
@@ -345,7 +348,7 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(s.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: t.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
                 Text(
-                  'Episode ${s.episode}${s.offline ? ' · Downloaded' : ''}${s.type == AudioType.dub ? ' · Dub' : ''}',
+                  tr.playerSubtitle(s.episode, offline: s.offline, isDub: s.type == AudioType.dub),
                   style: t.bodySmall?.copyWith(color: Colors.white70),
                 ),
               ]),
@@ -356,7 +359,7 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
       // Centre controls
       Center(
         child: Row(mainAxisSize: MainAxisSize.min, children: [
-          _roundButton(Icons.replay_10_rounded, 40, () => _seekBy(-10), 'Back 10 seconds'),
+          _roundButton(Icons.replay_10_rounded, 40, () => _seekBy(-10), tr.back10),
           const SizedBox(width: 28),
           Material(
             color: Colors.black45,
@@ -374,7 +377,7 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
             ),
           ),
           const SizedBox(width: 28),
-          _roundButton(Icons.forward_10_rounded, 40, () => _seekBy(10), 'Forward 10 seconds'),
+          _roundButton(Icons.forward_10_rounded, 40, () => _seekBy(10), tr.forward10),
         ]),
       ),
       // Bottom bar
@@ -431,18 +434,18 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
               ),
             ]),
             Row(children: [
-              _barButton(Icons.closed_caption_rounded, 'Subtitles', _subtitleMenu, active: s.subtitle != null),
-              if (s.qualities.length > 1) _barButton(Icons.high_quality_rounded, s.quality?.label ?? 'Quality', _qualityMenu, label: s.quality?.label),
-              _barButton(Icons.speed_rounded, 'Speed', _speedMenu, label: s.speed == 1 ? null : '${s.speed}×'),
+              _barButton(Icons.closed_caption_rounded, tr.subtitles, _subtitleMenu, active: s.subtitle != null),
+              if (s.qualities.length > 1) _barButton(Icons.high_quality_rounded, s.quality?.label ?? tr.quality, _qualityMenu, label: s.quality?.label),
+              _barButton(Icons.speed_rounded, tr.speed, _speedMenu, label: s.speed == 1 ? null : '${s.speed}×'),
               _barButton(Icons.auto_awesome_rounded, 'Anime4K', _anime4kMenu, active: s.anime4kPreset != 'off'),
-              if (s.servers.length > 1 || s.current != null) _barButton(Icons.dns_rounded, 'Server', _serverMenu, label: _wide ? s.current?.serverName : null),
+              if (s.servers.length > 1 || s.current != null) _barButton(Icons.dns_rounded, tr.server, _serverMenu, label: _wide ? s.current?.serverName : null),
               const Spacer(),
               ValueListenableBuilder<VideoFit>(
                 valueListenable: s.videoFit,
-                builder: (context, fit, _) => _barButton(fit.icon, 'Picture: ${fit.label} (Z)', _cycleFit, active: fit != VideoFit.fit),
+                builder: (context, fit, _) => _barButton(fit.icon, tr.picture(tr.fitMode(fit.name)), _cycleFit, active: fit != VideoFit.fit),
               ),
-              if (s.nextEpisode != null) _barButton(Icons.skip_next_rounded, 'Next episode', () => unawaited(s.playNext()), label: _wide ? 'Next' : null),
-              if (!_mobile) _barButton(widget.videoState.isFullscreen() ? Icons.fullscreen_exit_rounded : Icons.fullscreen_rounded, 'Fullscreen', () => unawaited(_toggleFullscreen())),
+              if (s.nextEpisode != null) _barButton(Icons.skip_next_rounded, tr.nextEpisode, () => unawaited(s.playNext()), label: _wide ? tr.next : null),
+              if (!_mobile) _barButton(widget.videoState.isFullscreen() ? Icons.fullscreen_exit_rounded : Icons.fullscreen_rounded, tr.fullscreen, () => unawaited(_toggleFullscreen())),
             ]),
           ]),
         ),
@@ -452,7 +455,7 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
 
   Future<void> _cycleFit() async {
     final f = await widget.session.cycleVideoFit();
-    _showHud(f.icon, f.label);
+    _showHud(f.icon, tr.fitMode(f.name));
   }
 
   Widget _roundButton(IconData icon, double size, VoidCallback onTap, String tip) => IconButton(
@@ -497,7 +500,7 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
         style: FilledButton.styleFrom(backgroundColor: Colors.black87, foregroundColor: Colors.white, side: const BorderSide(color: Colors.white54)),
         onPressed: () => unawaited(s.skipActive()),
         icon: const Icon(Icons.fast_forward_rounded),
-        label: Text(s.activeSkipIsIntro ? 'Skip intro' : 'Skip outro'),
+        label: Text(s.activeSkipIsIntro ? tr.skipIntro : tr.skipOutro),
       ),
     );
   }
@@ -509,7 +512,7 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
       child: Column(mainAxisSize: MainAxisSize.min, children: [
         const Skeleton(width: 220, height: 14),
         const SizedBox(height: 12),
-        Text('Loading episode ${s.episode}…', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.white54)),
+        Text(tr.loadingEpisode(s.episode), style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.white54)),
         const SizedBox(height: 18),
         SizedBox(width: 160, child: LinearProgressIndicator(minHeight: 2, color: kAccent, backgroundColor: Colors.white12)),
       ]),
@@ -527,9 +530,9 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
         ),
         EmptyState(
           icon: Icons.error_outline_rounded,
-          title: "Can't play this episode",
+          title: tr.cantPlay,
           message: s.errorMessage,
-          actionLabel: 'Try again',
+          actionLabel: tr.tryAgain,
           onAction: () => unawaited(s.retry()),
         ),
       ]),
@@ -634,16 +637,16 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
       );
 
   void _subtitleMenu() {
-    unawaited(_sheet<void>('Subtitles', (ctx, setSheet) {
+    unawaited(_sheet<void>(tr.subtitles, (ctx, setSheet) {
       final tracks = s.allSubtitleTracks;
       return Column(children: [
-        _option(ctx, 'Off', s.subtitle == null, () => unawaited(s.selectSubtitle(null))),
+        _option(ctx, tr.off, s.subtitle == null, () => unawaited(s.selectSubtitle(null))),
         for (final t in tracks) _option(ctx, t.label, s.subtitle == t, () => unawaited(s.selectSubtitle(t))),
         const Divider(height: 1),
         ListTile(
           dense: true,
           leading: const Icon(Icons.upload_file_rounded),
-          title: const Text('Import subtitle file…'),
+          title: Text(tr.importSubtitleFile),
           onTap: () {
             Navigator.pop(ctx);
             widget.onImportSubtitle();
@@ -652,8 +655,8 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
         ListTile(
           dense: true,
           leading: const Icon(Icons.travel_explore_rounded),
-          title: const Text('Search Korean subs manually'),
-          subtitle: s.koreanSearching ? const Text('Looking for Korean subtitles automatically…') : null,
+          title: Text(tr.searchKoreanManually),
+          subtitle: s.koreanSearching ? Text(tr.lookingForKorean) : null,
           onTap: () {
             Navigator.pop(ctx);
             widget.onFindKorean();
@@ -662,7 +665,7 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
         ListTile(
           dense: true,
           leading: const Icon(Icons.tune_rounded),
-          title: const Text('Style & timing'),
+          title: Text(tr.styleAndTiming),
           onTap: () {
             Navigator.pop(ctx);
             _subtitleStyleSheet();
@@ -673,7 +676,7 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
   }
 
   void _subtitleStyleSheet() {
-    unawaited(_sheet<void>('Subtitle style & timing', (ctx, setSheet) {
+    unawaited(_sheet<void>(tr.subtitleStyleTiming, (ctx, setSheet) {
       final st = ref.read(settingsProvider);
       final notifier = ref.read(settingsProvider.notifier);
       Future<void> set(String k, Object v) async {
@@ -689,13 +692,13 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
               Expanded(child: Slider(value: value.clamp(min, max), min: min, max: max, divisions: div, label: value.toStringAsFixed(1), onChanged: (v) => set(key, v))),
             ]),
           );
-      const colors = {'White': 'FFFFFF', 'Yellow': 'FFE066', 'Cyan': '7DF9FF', 'Green': '9BE564'};
+      final colors = tr.subColors;
       return Column(children: [
         _SyncControl(session: s, onChanged: () => setSheet(() {})),
         const Divider(),
-        slider('Size', st.subSize, 24, 90, 'subSize'),
-        slider('Outline', st.subOutline, 0, 6, 'subOutline'),
-        slider('Position', st.subPos, 60, 100, 'subPos'),
+        slider(tr.size, st.subSize, 24, 90, 'subSize'),
+        slider(tr.outline, st.subOutline, 0, 6, 'subOutline'),
+        slider(tr.position, st.subPos, 60, 100, 'subPos'),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20),
           child: Wrap(spacing: 8, children: [
@@ -705,7 +708,7 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
         ),
         SwitchListTile(
           dense: true,
-          title: const Text('Background box'),
+          title: Text(tr.backgroundBox),
           value: st.subBackground,
           onChanged: (v) => set('subBackground', v),
         ),
@@ -714,29 +717,29 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
   }
 
   void _qualityMenu() {
-    unawaited(_sheet<void>('Quality', (ctx, _) => Column(children: [
+    unawaited(_sheet<void>(tr.quality, (ctx, _) => Column(children: [
           for (final q in s.qualities) _option(ctx, q.label, s.quality == q, () => unawaited(s.selectQuality(q))),
         ])));
   }
 
   void _speedMenu() {
-    unawaited(_sheet<void>('Playback speed', (ctx, _) => Column(children: [
+    unawaited(_sheet<void>(tr.playbackSpeed, (ctx, _) => Column(children: [
           for (final v in const [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0])
-            _option(ctx, v == 1.0 ? 'Normal' : '$v×', s.speed == v, () => unawaited(s.setSpeed(v))),
+            _option(ctx, v == 1.0 ? tr.normal : '$v×', s.speed == v, () => unawaited(s.setSpeed(v))),
         ])));
   }
 
   void _serverMenu() {
-    unawaited(_sheet<void>('Server & audio', (ctx, _) {
+    unawaited(_sheet<void>(tr.serverAndAudio, (ctx, _) {
       return Column(children: [
         if (!s.offline)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
             child: SegmentedButton<AudioType>(
               showSelectedIcon: false,
-              segments: const [
-                ButtonSegment(value: AudioType.sub, label: Text('Sub')),
-                ButtonSegment(value: AudioType.dub, label: Text('Dub')),
+              segments: [
+                ButtonSegment(value: AudioType.sub, label: Text(tr.sub)),
+                ButtonSegment(value: AudioType.dub, label: Text(tr.dub)),
               ],
               selected: {s.type},
               onSelectionChanged: (v) {
@@ -746,8 +749,8 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
             ),
           ),
         if (s.offline)
-          const ListTile(dense: true, leading: Icon(Icons.download_done_rounded), title: Text('Playing the downloaded copy')),
-        if (!s.offline && s.servers.isEmpty) const ListTile(dense: true, title: Text('Looking for servers…')),
+          ListTile(dense: true, leading: const Icon(Icons.download_done_rounded), title: Text(tr.playingDownloaded)),
+        if (!s.offline && s.servers.isEmpty) ListTile(dense: true, title: Text(tr.lookingForServers)),
         for (final sv in s.servers) _option(ctx, sv.serverName, sv == s.current, () => unawaited(s.selectServer(sv))),
       ]);
     }));
@@ -755,17 +758,17 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
 
   void _anime4kMenu() {
     final st = ref.read(settingsProvider);
-    unawaited(_sheet<void>('Anime4K upscaling', (ctx, _) {
+    unawaited(_sheet<void>(tr.anime4kUpscaling, (ctx, _) {
       return Column(children: [
         for (final pr in Anime4K.presets)
-          _option(ctx, pr.$2, s.anime4kPreset == pr.$1, () {
+          _option(ctx, tr.anime4kMode(pr.$1), s.anime4kPreset == pr.$1, () {
             unawaited(ref.read(settingsProvider.notifier).set('anime4k', pr.$1));
             unawaited(s.applyAnime4K(pr.$1));
             if (pr.$1 != 'off' && _mobile && !st.anime4kNoteShown) {
               unawaited(ref.read(settingsProvider.notifier).set('anime4kNoteShown', true));
-              s.showToast('Anime4K is GPU-heavy on phones. Turn it off if playback stutters.');
+              s.showToast(tr.anime4kPhoneNote);
             }
-          }, subtitle: pr.$1 == 'a' ? 'Recommended' : null),
+          }, subtitle: pr.$1 == 'a' ? tr.recommended : null),
       ]);
     }));
   }
@@ -788,20 +791,21 @@ class _SyncControl extends StatelessWidget {
 
   Future<void> _type(BuildContext context) async {
     final c = TextEditingController(text: '${session.subtitleOffsetMs}');
+    final tr = Strings.of(context);
     final v = await showDialog<int>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Subtitle sync (ms)'),
+        title: Text(tr.subtitleSyncMs),
         content: TextField(
           controller: c,
           autofocus: true,
           keyboardType: const TextInputType.numberWithOptions(signed: true),
-          decoration: const InputDecoration(helperText: 'Positive = subtitles later, negative = earlier'),
+          decoration: InputDecoration(helperText: tr.syncHelper),
           onSubmitted: (t) => Navigator.pop(ctx, int.tryParse(t.trim())),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, int.tryParse(c.text.trim())), child: const Text('Set')),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(tr.cancel)),
+          FilledButton(onPressed: () => Navigator.pop(ctx, int.tryParse(c.text.trim())), child: Text(tr.set)),
         ],
       ),
     );
@@ -812,6 +816,7 @@ class _SyncControl extends StatelessWidget {
   Widget build(BuildContext context) {
     final ms = session.subtitleOffsetMs;
     final applies = session.isFansubTrack(session.subtitle);
+    final tr = Strings.of(context);
     Widget step(String label, int delta) => TextButton(
           style: TextButton.styleFrom(minimumSize: const Size(52, 36), padding: const EdgeInsets.symmetric(horizontal: 6)),
           onPressed: () => _set(ms + delta),
@@ -821,8 +826,8 @@ class _SyncControl extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
-          const Expanded(child: Text('Subtitle sync')),
-          TextButton(onPressed: ms == 0 ? null : () => _set(0), child: const Text('Reset')),
+          Expanded(child: Text(tr.subtitleSync)),
+          TextButton(onPressed: ms == 0 ? null : () => _set(0), child: Text(tr.reset)),
         ]),
         Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
           step('−1 s', -1000),
@@ -839,9 +844,7 @@ class _SyncControl extends StatelessWidget {
           step('+1 s', 1000),
         ]),
         Text(
-          applies
-              ? 'Saved for this season: every episode uses it. Keys: G / H (Shift for 1 s).'
-              : 'Saved for this season. Applies to Korean and imported subtitles only; this track is already in sync.',
+          applies ? tr.syncSavedFansub : tr.syncSavedSite,
           style: const TextStyle(color: Colors.white54, fontSize: 12),
         ),
       ]),

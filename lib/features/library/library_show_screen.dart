@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/providers.dart';
+import '../../app/strings.dart';
 import '../../app/theme.dart';
 import '../../core/downloads/download_manager.dart';
+import '../../core/models.dart';
 import '../../core/storage/records.dart';
 import '../../ui/widgets.dart';
 import '../player/open_player.dart';
@@ -17,6 +19,7 @@ class LibraryShowScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final lib = ref.watch(libraryProvider).where((s) => s.show.slug == slug).firstOrNull;
+    final tr = Strings.of(context);
     final history = {
       for (final h in ref.watch(historyProvider).value ?? const <HistoryEntry>[])
         if (h.slug == slug) h.episode: h
@@ -24,7 +27,7 @@ class LibraryShowScreen extends ConsumerWidget {
     if (lib == null) {
       return Scaffold(
         appBar: AppBar(),
-        body: const EmptyState(icon: Icons.folder_off_outlined, title: 'Nothing downloaded', message: 'All episodes of this show were removed.'),
+        body: EmptyState(icon: Icons.folder_off_outlined, title: tr.nothingDownloadedShow, message: tr.allRemoved),
       );
     }
     final show = lib.show;
@@ -48,14 +51,14 @@ class LibraryShowScreen extends ConsumerWidget {
               PopupMenuButton<String>(
                 onSelected: (v) async {
                   if (v == 'delete') {
-                    final ok = await _confirm(context, 'Delete ${show.title}?', 'All ${eps.length} downloaded episodes will be removed from this device.');
+                    final ok = await _confirm(context, tr.deleteShowTitle(show.title), tr.deleteShowBody(eps.length));
                     if (ok) {
                       await ref.read(downloadManagerProvider).deleteShow(slug);
                       if (context.mounted) Navigator.of(context).pop();
                     }
                   }
                 },
-                itemBuilder: (_) => const [PopupMenuItem(value: 'delete', child: Text('Delete all episodes'))],
+                itemBuilder: (_) => [PopupMenuItem(value: 'delete', child: Text(tr.deleteAllEpisodes))],
               ),
             ],
             flexibleSpace: FlexibleSpaceBar(
@@ -80,7 +83,7 @@ class LibraryShowScreen extends ConsumerWidget {
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(show.title, style: t.headlineSmall?.copyWith(fontWeight: FontWeight.w800)),
                 const SizedBox(height: 4),
-                Text('${eps.length} ${eps.length == 1 ? 'episode' : 'episodes'} · ${formatBytes(lib.totalBytes)}',
+                Text('${tr.episodeCount(eps.length)} · ${formatBytes(lib.totalBytes)}',
                     style: t.bodyMedium?.copyWith(color: Colors.white60)),
                 if (show.synopsis.isNotEmpty) ...[
                   const SizedBox(height: Gap.s),
@@ -91,14 +94,14 @@ class LibraryShowScreen extends ConsumerWidget {
                   Expanded(
                     child: FilledButton.icon(
                       icon: const Icon(Icons.play_arrow_rounded),
-                      label: Text(nextPartial ? 'Resume episode ${next.episode}' : 'Play episode ${next.episode}'),
+                      label: Text(nextPartial ? tr.resumeEpisode(next.episode) : tr.playEpisode(next.episode)),
                       onPressed: () => _play(context, show.title, next!),
                     ),
                   ),
                   const SizedBox(width: Gap.s),
                   OutlinedButton.icon(
                     icon: const Icon(Icons.download_rounded),
-                    label: const Text('Get more'),
+                    label: Text(tr.getMore),
                     onPressed: () => _downloadNext(context, ref, lib),
                   ),
                 ]),
@@ -119,7 +122,7 @@ class LibraryShowScreen extends ConsumerWidget {
                 posterUrl: show.poster,
                 onPlay: () => _play(context, show.title, d),
                 onDelete: () async {
-                  final ok = await _confirm(context, 'Delete episode ${d.episode}?', 'It will be removed from this device.');
+                  final ok = await _confirm(context, tr.deleteEpisodeTitle(d.episode), tr.deleteEpisodeBody);
                   if (ok) await ref.read(downloadManagerProvider).deleteEpisode(d.key);
                 },
                 onToggleWatched: () {
@@ -144,13 +147,14 @@ class LibraryShowScreen extends ConsumerWidget {
   }
 
   Future<void> _downloadNext(BuildContext context, WidgetRef ref, LibraryShow lib) async {
+    final tr = Strings.of(context);
     final count = await showModalBottomSheet<int>(
       context: context,
       builder: (ctx) => SafeArea(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
-          const Padding(padding: EdgeInsets.all(Gap.m), child: Text('Download the next…', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18))),
+          Padding(padding: const EdgeInsets.all(Gap.m), child: Text(tr.downloadTheNext, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 18))),
           for (final n in [1, 3, 5, 10])
-            ListTile(title: Text(n == 1 ? 'Next episode' : 'Next $n episodes'), onTap: () => Navigator.pop(ctx, n)),
+            ListTile(title: Text(tr.nextEpisodes(n)), onTap: () => Navigator.pop(ctx, n)),
         ]),
       ),
     );
@@ -162,25 +166,26 @@ class LibraryShowScreen extends ConsumerWidget {
       final type = lib.episodes.last.type;
       final next = bundle.episodes.where((e) => e.numeric > have).take(count).toList();
       if (next.isEmpty) {
-        messenger.showSnackBar(const SnackBar(content: Text("You're all caught up.")));
+        messenger.showSnackBar(SnackBar(content: Text(tr.allCaughtUp)));
         return;
       }
       await ref.read(downloadManagerProvider).enqueue(bundle.detail, next, type, ref.read(settingsProvider).quality);
-      messenger.showSnackBar(SnackBar(content: Text('Added ${next.length} to downloads')));
+      messenger.showSnackBar(SnackBar(content: Text(tr.addedToDownloads(next.length))));
     } catch (_) {
-      messenger.showSnackBar(const SnackBar(content: Text('Connect to the internet to download more episodes.')));
+      messenger.showSnackBar(SnackBar(content: Text(tr.connectToDownload)));
     }
   }
 
   Future<bool> _confirm(BuildContext context, String title, String message) async {
+    final tr = Strings.of(context);
     final r = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(title),
         content: Text(message),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Delete')),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(tr.cancel)),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: Text(tr.delete)),
         ],
       ),
     );
@@ -211,6 +216,7 @@ class _EpisodeRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
+    final tr = Strings.of(context);
     final watched = history?.isFinished ?? false;
     final partial = history?.isPartial ?? false;
     final dur = record.durationMs > 0 ? record.durationMs : (history?.durationMs ?? 0);
@@ -218,7 +224,7 @@ class _EpisodeRow extends StatelessWidget {
       if (dur > 0) formatDuration(Duration(milliseconds: dur)),
       formatBytes(record.totalBytes),
       if (record.quality.isNotEmpty) record.quality,
-      record.type.label,
+      record.type == AudioType.dub ? tr.dub : tr.sub,
     ].join(' · ');
     return InkWell(
       onTap: onPlay,
@@ -258,7 +264,7 @@ class _EpisodeRow extends StatelessWidget {
           const SizedBox(width: Gap.m),
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(record.episodeTitle.isEmpty ? 'Episode ${record.episode}' : record.episodeTitle,
+              Text(record.episodeTitle.isEmpty ? tr.episode(record.episode) : record.episodeTitle,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: t.bodyLarge?.copyWith(fontWeight: FontWeight.w600, color: watched ? Colors.white54 : Colors.white)),
@@ -270,8 +276,8 @@ class _EpisodeRow extends StatelessWidget {
           PopupMenuButton<String>(
             onSelected: (v) => v == 'delete' ? onDelete() : onToggleWatched(),
             itemBuilder: (_) => [
-              PopupMenuItem(value: 'watched', child: Text(watched ? 'Mark as unwatched' : 'Mark as watched')),
-              const PopupMenuItem(value: 'delete', child: Text('Delete episode')),
+              PopupMenuItem(value: 'watched', child: Text(tr.markWatched(watched))),
+              PopupMenuItem(value: 'delete', child: Text(tr.deleteEpisode)),
             ],
           ),
         ]),

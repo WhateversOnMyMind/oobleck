@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../app/strings.dart';
 import '../../app/theme.dart';
 import '../../core/sync/sync_api.dart';
 import 'sync_controller.dart';
@@ -15,28 +16,29 @@ class SyncSettingsSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(syncProvider);
     final c = ref.read(syncProvider.notifier);
+    final tr = Strings.of(context);
     if (!s.signedIn) {
       return ListTile(
         leading: const Icon(Icons.cloud_sync_outlined),
-        title: const Text('Sync watch history'),
-        subtitle: Text(s.error ?? 'Sign in with a user ID and password to keep Continue watching the same on every device.'),
-        trailing: FilledButton.tonal(onPressed: () => showSyncSignIn(context), child: const Text('Sign in')),
+        title: Text(tr.syncWatchHistory),
+        subtitle: Text(s.error == null ? tr.syncPitch : tr.syncError(s.error!)),
+        trailing: FilledButton.tonal(onPressed: () => showSyncSignIn(context), child: Text(tr.signIn)),
         onTap: () => showSyncSignIn(context),
       );
     }
     return Column(children: [
       ListTile(
         leading: Icon(Icons.cloud_done_outlined, color: s.error == null ? kAccent : Colors.orangeAccent),
-        title: Text('Signed in as ${s.username}'),
-        subtitle: Text(s.syncing ? 'Syncing…' : s.error ?? syncedAgo(s.lastSync, DateTime.now())),
+        title: Text(tr.signedInAs(s.username!)),
+        subtitle: Text(s.syncing ? tr.syncing : s.error != null ? tr.syncError(s.error!) : syncedAgo(s.lastSync, DateTime.now(), tr)),
         trailing: s.syncing
             ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))
-            : TextButton(onPressed: () => unawaited(c.syncNow()), child: const Text('Sync now')),
+            : TextButton(onPressed: () => unawaited(c.syncNow()), child: Text(tr.syncNow)),
       ),
       ListTile(
         leading: const Icon(Icons.logout_rounded),
-        title: const Text('Sign out'),
-        subtitle: const Text('History on this device is kept.'),
+        title: Text(tr.signOut),
+        subtitle: Text(tr.signOutHint),
         onTap: () => unawaited(c.signOut()),
       ),
     ]);
@@ -51,13 +53,14 @@ class HomeSyncButton extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(syncProvider);
+    final tr = Strings.of(context);
     if (!s.signedIn) {
       return Padding(
         padding: const EdgeInsets.only(right: 12),
         child: FilledButton.icon(
           onPressed: () => showSyncSignIn(context),
           icon: const Icon(Icons.person_outline_rounded, size: 20),
-          label: const Text('Sign in'),
+          label: Text(tr.signIn),
         ),
       );
     }
@@ -68,7 +71,7 @@ class HomeSyncButton extends ConsumerWidget {
     return Padding(
       padding: const EdgeInsets.only(right: 12),
       child: Tooltip(
-        message: s.syncing ? 'Syncing…' : s.error ?? '${syncedAgo(s.lastSync, DateTime.now())} · tap to sync now',
+        message: s.syncing ? tr.syncing : s.error != null ? tr.syncError(s.error!) : tr.tapToSync(syncedAgo(s.lastSync, DateTime.now(), tr)),
         child: ActionChip(
           avatar: icon,
           label: ConstrainedBox(
@@ -82,25 +85,25 @@ class HomeSyncButton extends ConsumerWidget {
   }
 }
 
-String syncedAgo(DateTime? t, DateTime now) {
-  if (t == null) return 'Not synced yet';
+String syncedAgo(DateTime? t, DateTime now, [Strings tr = Strings.en]) {
+  if (t == null) return tr.notSyncedYet;
   final d = now.difference(t);
-  if (d.inMinutes < 1) return 'Synced just now';
-  if (d.inMinutes < 60) return 'Synced ${d.inMinutes} min ago';
-  if (d.inHours < 24) return 'Synced ${d.inHours} h ago';
-  return 'Synced ${t.year}-${t.month.toString().padLeft(2, '0')}-${t.day.toString().padLeft(2, '0')}';
+  if (d.inMinutes < 1) return tr.syncedJustNow;
+  if (d.inMinutes < 60) return tr.syncedMinAgo(d.inMinutes);
+  if (d.inHours < 24) return tr.syncedHoursAgo(d.inHours);
+  return tr.syncedOn('${t.year}-${t.month.toString().padLeft(2, '0')}-${t.day.toString().padLeft(2, '0')}');
 }
 
 final _userPattern = RegExp(r'^[a-z0-9_.-]{3,32}$');
 
 /// Checks the form before anything is sent; null when it is fine.
-String? validateSyncForm({required String user, required String password, String? confirm, required bool create, required String server}) {
-  if (server.trim().isEmpty) return 'Enter the sync server address.';
+String? validateSyncForm({required String user, required String password, String? confirm, required bool create, required String server, Strings tr = Strings.en}) {
+  if (server.trim().isEmpty) return tr.errServerAddress;
   final u = Uri.tryParse(server.trim());
-  if (u == null || !(u.scheme == 'https' || u.scheme == 'http') || u.host.isEmpty) return 'The server address should start with https://';
-  if (!_userPattern.hasMatch(user.trim().toLowerCase())) return 'User ID: 3-32 letters, numbers, dot, dash or underscore.';
-  if (password.length < 8) return 'Password: at least 8 characters.';
-  if (create && confirm != password) return "Passwords don't match.";
+  if (u == null || !(u.scheme == 'https' || u.scheme == 'http') || u.host.isEmpty) return tr.errServerScheme;
+  if (!_userPattern.hasMatch(user.trim().toLowerCase())) return tr.errUserId;
+  if (password.length < 8) return tr.errPassword;
+  if (create && confirm != password) return tr.errPasswordsDiffer;
   return null;
 }
 
@@ -130,7 +133,7 @@ class _SyncSignInDialogState extends ConsumerState<SyncSignInDialog> {
   }
 
   Future<void> _submit() async {
-    final err = validateSyncForm(user: _user.text, password: _pass.text, confirm: _confirm.text, create: _create, server: _server.text);
+    final err = validateSyncForm(user: _user.text, password: _pass.text, confirm: _confirm.text, create: _create, server: _server.text, tr: Strings.of(context));
     if (err != null) return setState(() => _error = err);
     setState(() {
       _busy = true;
@@ -140,9 +143,9 @@ class _SyncSignInDialogState extends ConsumerState<SyncSignInDialog> {
       await ref.read(syncProvider.notifier).signIn(_user.text, _pass.text, create: _create, serverUrl: _server.text);
       if (mounted) Navigator.of(context).pop();
     } on SyncException catch (e) {
-      if (mounted) setState(() => _error = e.message);
+      if (mounted) setState(() => _error = Strings.of(context).syncError(e));
     } catch (_) {
-      if (mounted) setState(() => _error = "Couldn't sign in.");
+      if (mounted) setState(() => _error = Strings.of(context).errSignIn);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -151,16 +154,17 @@ class _SyncSignInDialogState extends ConsumerState<SyncSignInDialog> {
   @override
   Widget build(BuildContext context) {
     final showServer = defaultSyncUrl.isEmpty || _server.text != defaultSyncUrl;
+    final tr = Strings.of(context);
     return AlertDialog(
-      title: const Text('Sync watch history'),
+      title: Text(tr.syncWatchHistory),
       content: SizedBox(
         width: 380,
         child: SingleChildScrollView(
           child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
             SegmentedButton<bool>(
-              segments: const [
-                ButtonSegment(value: false, label: Text('Sign in')),
-                ButtonSegment(value: true, label: Text('Create account')),
+              segments: [
+                ButtonSegment(value: false, label: Text(tr.signIn)),
+                ButtonSegment(value: true, label: Text(tr.createAccount)),
               ],
               selected: {_create},
               onSelectionChanged: _busy ? null : (v) => setState(() => _create = v.first),
@@ -172,14 +176,14 @@ class _SyncSignInDialogState extends ConsumerState<SyncSignInDialog> {
               autocorrect: false,
               enableSuggestions: false,
               autofillHints: const [AutofillHints.username],
-              decoration: const InputDecoration(labelText: 'User ID'),
+              decoration: InputDecoration(labelText: tr.userId),
             ),
             TextField(
               controller: _pass,
               enabled: !_busy,
               obscureText: true,
               autofillHints: [_create ? AutofillHints.newPassword : AutofillHints.password],
-              decoration: const InputDecoration(labelText: 'Password'),
+              decoration: InputDecoration(labelText: tr.password),
               onSubmitted: _create ? null : (_) => unawaited(_submit()),
             ),
             if (_create)
@@ -187,7 +191,7 @@ class _SyncSignInDialogState extends ConsumerState<SyncSignInDialog> {
                 controller: _confirm,
                 enabled: !_busy,
                 obscureText: true,
-                decoration: const InputDecoration(labelText: 'Password again'),
+                decoration: InputDecoration(labelText: tr.passwordAgain),
                 onSubmitted: (_) => unawaited(_submit()),
               ),
             if (showServer)
@@ -196,12 +200,12 @@ class _SyncSignInDialogState extends ConsumerState<SyncSignInDialog> {
                 enabled: !_busy,
                 keyboardType: TextInputType.url,
                 autocorrect: false,
-                decoration: const InputDecoration(labelText: 'Sync server', hintText: 'https://oobleck-sync.<name>.workers.dev'),
+                decoration: InputDecoration(labelText: tr.syncServer, hintText: 'https://oobleck-sync.<name>.workers.dev'),
               ),
             if (_create) ...[
               const SizedBox(height: 12),
               Text(
-                "There is no password reset: if you forget it, create a new account. Use a password you don't use anywhere else.",
+                tr.noReset,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white60),
               ),
             ],
@@ -213,12 +217,12 @@ class _SyncSignInDialogState extends ConsumerState<SyncSignInDialog> {
         ),
       ),
       actions: [
-        TextButton(onPressed: _busy ? null : () => Navigator.of(context).pop(), child: const Text('Cancel')),
+        TextButton(onPressed: _busy ? null : () => Navigator.of(context).pop(), child: Text(tr.cancel)),
         FilledButton(
           onPressed: _busy ? null : () => unawaited(_submit()),
           child: _busy
               ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-              : Text(_create ? 'Create account' : 'Sign in'),
+              : Text(_create ? tr.createAccount : tr.signIn),
         ),
       ],
     );

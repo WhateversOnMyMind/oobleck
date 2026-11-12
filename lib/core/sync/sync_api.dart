@@ -7,12 +7,17 @@ import '../storage/records.dart';
 /// override it.
 const defaultSyncUrl = String.fromEnvironment('OOBLECK_SYNC_URL');
 
+/// What went wrong, so the UI can say it in the user's language.
+enum SyncError { noServer, unreachable, server, signedOut, taken, wrongPassword, locked, invalid }
+
 class SyncException implements Exception {
-  SyncException(this.message, {this.signedOut = false});
+  SyncException(this.message, {this.kind = SyncError.server, this.status});
   final String message;
+  final SyncError kind;
+  final int? status;
 
   /// The token is no longer valid (signed out elsewhere or account deleted).
-  final bool signedOut;
+  bool get signedOut => kind == SyncError.signedOut;
   @override
   String toString() => message;
 }
@@ -80,7 +85,7 @@ class SyncApi {
   final String baseUrl;
 
   Future<Map<String, dynamic>> _call(String method, String path, {Object? body, String? token}) async {
-    if (baseUrl.isEmpty) throw SyncException('No sync server set.');
+    if (baseUrl.isEmpty) throw SyncException('No sync server set.', kind: SyncError.noServer);
     try {
       final r = await dio.request<Map<String, dynamic>>(
         '$baseUrl$path',
@@ -99,9 +104,16 @@ class SyncApi {
       final status = e.response?.statusCode;
       final data = e.response?.data;
       final msg = data is Map && data['error'] is String ? data['error'] as String : null;
-      if (status == 401 && token != null) throw SyncException('Signed out. Sign in again.', signedOut: true);
-      if (msg != null) throw SyncException(msg);
-      throw SyncException(status == null ? "Can't reach the sync server." : 'Sync server error ($status).');
+      if (status == null) throw SyncException("Can't reach the sync server.", kind: SyncError.unreachable);
+      final kind = switch (status) {
+        401 when token != null => SyncError.signedOut,
+        401 => SyncError.wrongPassword,
+        409 => SyncError.taken,
+        429 => SyncError.locked,
+        400 => SyncError.invalid,
+        _ => SyncError.server,
+      };
+      throw SyncException(msg ?? 'Sync server error ($status).', kind: kind, status: status);
     }
   }
 

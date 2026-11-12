@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/downloads/download_manager.dart';
+import '../features/settings/language_screen.dart';
 import '../features/sync/sync_controller.dart';
+import 'providers.dart';
+import 'strings.dart';
 import 'shell.dart';
 import 'theme.dart';
 
@@ -36,13 +40,23 @@ class _OobleckAppState extends ConsumerState<OobleckApp> with WidgetsBindingObse
 
   @override
   Widget build(BuildContext context) {
+    final language = ref.watch(settingsProvider.select((s) => s.language));
     return MaterialApp(
       title: 'Oobleck',
+      locale: Strings.forCode(language).locale,
+      supportedLocales: const [Locale('en'), Locale('ko')],
+      localizationsDelegates: const [
+        StringsDelegate(),
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
       debugShowCheckedModeBanner: false,
       theme: buildTheme(),
       darkTheme: buildTheme(),
       themeMode: ThemeMode.dark,
-      home: const Shell(),
+      // First launch asks for the language once; after that it is remembered.
+      home: language == null ? const LanguageScreen() : const Shell(),
     );
   }
 }

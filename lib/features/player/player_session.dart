@@ -7,6 +7,7 @@ import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 
 import '../../app/settings.dart';
+import '../../app/strings.dart';
 import '../../core/downloads/hls.dart';
 import '../../core/log.dart';
 import '../../core/models.dart';
@@ -128,6 +129,9 @@ class PlayerSession extends ChangeNotifier {
   /// All subtitle tracks selectable for the current episode.
   List<SubtitleTrackInfo> get allSubtitleTracks => subtitleTracks;
 
+  /// UI text in the user's language (toasts and error messages).
+  Strings get strings => Strings.forCode(settings().language);
+
   String get title => request.showTitle;
   String get episode => request.episode;
   AudioType get type => request.type;
@@ -172,7 +176,7 @@ class PlayerSession extends ChangeNotifier {
       if (id != _loadId || _disposed) return;
       Log.d('player', 'load failed: $e\n$st');
       phase = SessionPhase.error;
-      errorMessage = e is SourceException ? e.message : "Couldn't start this episode. Check your connection and try again.";
+      errorMessage = e is SourceException ? e.message : strings.errStart;
       notifyListeners();
     }
   }
@@ -205,7 +209,7 @@ class PlayerSession extends ChangeNotifier {
   Future<void> _playRemote(PlayRequest req, Duration startAt, int id, {StreamSource? forced}) async {
     final eps = await loadEpisodes(req.slug);
     final ep = eps.where((e) => e.number == req.episode).firstOrNull;
-    if (ep == null) throw SourceException('Episode not found');
+    if (ep == null) throw SourceException(strings.errEpisodeNotFound);
     final info = ep.toInfo();
     final order = settings().serverOrder.map((e) => e.toLowerCase()).toList();
     int rank(StreamSource s) {
@@ -254,7 +258,7 @@ class PlayerSession extends ChangeNotifier {
     }, onDone: () {
       if (!started) {
         if (arrived.isEmpty) {
-          if (!completer.isCompleted) completer.completeError(SourceException('No working server found. Try again in a moment.'));
+          if (!completer.isCompleted) completer.completeError(SourceException(strings.errNoServer));
         } else {
           final best = [...arrived]..sort((a, b) => rank(a).compareTo(rank(b)));
           unawaited(startWith(best.first));
@@ -286,7 +290,7 @@ class PlayerSession extends ChangeNotifier {
     unawaited(applyAnime4K(settings().anime4k));
     unawaited(player.setRate(speed));
     if (startAt > const Duration(seconds: 5)) {
-      showToast('Resumed at ${_fmt(startAt)}', action: 'Start over', onAction: () {
+      showToast(strings.resumedAt(_fmt(startAt)), action: strings.startOver, onAction: () {
         unawaited(player.seek(Duration.zero));
       });
     }
@@ -395,13 +399,13 @@ class PlayerSession extends ChangeNotifier {
       final found = await lookupKoreanSub(dio: dio, db: db, slug: slug, malId: malId, episode: episode);
       if (id != _loadId || _disposed) return;
       if (found == null) {
-        if (!_userPickedSubtitle) showToast('No Korean subtitles found for episode $episode');
+        if (!_userPickedSubtitle) showToast(strings.noKoreanFor(episode));
         return;
       }
       final path = await saveSubtitle(found.subtitle, supportDir, slug, episode);
       await addExternalSubtitle(path, found.label, user: false);
       if (_userPickedSubtitle) return;
-      showToast('Korean subtitles · ${found.fansubber}');
+      showToast(strings.koreanSubsBy(found.fansubber));
     } catch (e) {
       Log.d('ko-subs', 'auto lookup failed: $e');
     } finally {
@@ -453,7 +457,7 @@ class PlayerSession extends ChangeNotifier {
       if (!isMasterPlaylist(text)) return;
       final variants = parseMasterPlaylist(text, Uri.parse(s.url))..sort((a, b) => b.bandwidth.compareTo(a.bandwidth));
       if (_disposed || current != s) return;
-      qualities = [QualityOption('Auto', null), for (final v in variants) QualityOption(v.label, v.url.toString())];
+      qualities = [QualityOption(strings.auto, null), for (final v in variants) QualityOption(v.label, v.url.toString())];
       quality = qualities.first;
       notifyListeners();
     } catch (e) {
@@ -483,7 +487,7 @@ class PlayerSession extends ChangeNotifier {
       await _open(s, pos, id);
     } catch (e) {
       phase = SessionPhase.error;
-      errorMessage = "That server didn't respond. Try another one.";
+      errorMessage = strings.errServerNoResponse;
       notifyListeners();
     }
   }
@@ -508,7 +512,7 @@ class PlayerSession extends ChangeNotifier {
     final s = current;
     if (s == null || offline) {
       phase = SessionPhase.error;
-      errorMessage = "This video can't be played.";
+      errorMessage = strings.errCantPlayVideo;
       notifyListeners();
       return;
     }
@@ -522,7 +526,7 @@ class PlayerSession extends ChangeNotifier {
       return;
     }
     phase = SessionPhase.error;
-    errorMessage = 'Playback stopped. Try again or switch server.';
+    errorMessage = strings.errPlaybackStopped;
     notifyListeners();
   }
 
@@ -633,7 +637,7 @@ class PlayerSession extends ChangeNotifier {
       } else {
         final dir = await Anime4K.install(supportDir);
         if (!Anime4K.available(preset, dir)) {
-          showToast('Anime4K shaders are missing from this build.');
+          showToast(strings.anime4kMissing);
           anime4kPreset = 'off';
         } else {
           if (Platform.isAndroid) {
@@ -662,9 +666,9 @@ class PlayerSession extends ChangeNotifier {
     final result = Anime4K.checkPasses(passes);
     Log.d('player', 'anime4k: ${result.detail}');
     if (result.running == true) {
-      showToast('${Anime4K.label(preset)} is running (${result.count} shader passes)');
+      showToast(strings.anime4kRunning(strings.anime4kMode(preset), result.count));
     } else if (result.running == false) {
-      showToast("Anime4K didn't start on this device. See Settings > Advanced > Source diagnostics.");
+      showToast(strings.anime4kDidntStart);
     }
   }
 

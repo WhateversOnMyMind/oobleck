@@ -16,6 +16,10 @@ Plays the raw stream in a native player (libmpv), so there are no ads and no web
 Every push builds artifacts in GitHub Actions (`build` workflow):
 - `oobleck-windows`: unzip and run `oobleck.exe`
 - `oobleck-android`: sideload an APK (the universal one, or the one for your CPU)
+- `oobleck-ios`: `oobleck-ios-unsigned.ipa`. iOS only installs signed apps, so install it with a sideloading tool
+  that signs it with your own Apple ID, such as AltStore or Sideloadly (a free Apple ID works; the app then has to
+  be refreshed every 7 days, a paid developer account lasts a year). Downloads are kept in the app's folder, which
+  shows up in the Files app under "On My iPhone > Oobleck"
 
 Android APKs are signed with a fixed release key, so a newer build installs over an older one and keeps your
 downloads and history. Stick to one APK type (`app-arm64-v8a-release.apk` for most phones): the per-CPU APKs carry a
@@ -43,6 +47,10 @@ Site-specific code lives in `lib/core/sources/anikoto/` and `lib/core/sources/ex
 Everything else talks to the `Source` interface. If the site changes, use
 **Settings > Advanced > Source diagnostics** to see each step's raw result. Megaplay keys can be
 overridden there without a rebuild.
+
+## Language
+The first launch asks for the app language (English or 한국어) and remembers it. Change it later in
+Settings > Language. All UI text lives in `lib/app/strings.dart`, each entry with both languages side by side.
 
 ## Watch-history sync (optional)
 Settings → Sync signs in with a user ID and password and keeps resume positions and Continue watching the same on

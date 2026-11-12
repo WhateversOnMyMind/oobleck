@@ -30,6 +30,7 @@ class AppSettings {
     this.megaplayIv = '',
     this.megaplayTokenKey = '',
     this.enableKiwi = true,
+    this.language,
   });
 
   final AudioType audio;
@@ -59,6 +60,9 @@ class AppSettings {
   final String megaplayTokenKey;
   final bool enableKiwi;
 
+  /// UI language ('en' | 'ko'); null until picked on first launch.
+  final String? language;
+
   static AppSettings load(AppDb db) {
     T g<T>(String k, T d) => db.setting<T>(k) ?? d;
     return AppSettings(
@@ -86,6 +90,7 @@ class AppSettings {
       megaplayIv: g('megaplayIv', ''),
       megaplayTokenKey: g('megaplayTokenKey', ''),
       enableKiwi: g('enableKiwi', true),
+      language: db.setting<String>('language'),
     );
   }
 }
