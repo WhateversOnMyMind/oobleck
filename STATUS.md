@@ -16,6 +16,10 @@ chain was checked live up to the decrypted stream URL, real responses are saved 
   `/videojs/` embed with the same `getSources` endpoint. No vidtube.site embed was seen, and Kiwi was not checked.
 - **Verified on Windows (owner's PC, CI build of `4c915c2`):** streaming playback from megaplay works, and Anime4K
   runs (the player reads mpv's `vo-passes` after a preset is picked and reports it in a toast).
+- Fixed: downloads were 13-second "videos" that ended at once, so auto-next skipped to the following episode.
+  Megaplay's CDN puts a 1x1 PNG header before each TS segment; ffmpeg then remuxed the joined file as PNG frames.
+  Segments are now unwrapped to the first TS packet and the remux forces MPEG-TS input. Downloads made before
+  this fix are broken: delete and re-download them
 - Fixed: re-signing an already signed URL left a literal `$1` in the path (`master.m3u8$1?token=`), so every stream
   failed with 404. Found from the in-app log.
 
