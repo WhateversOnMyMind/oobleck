@@ -14,6 +14,7 @@ import '../../core/models.dart';
 import '../../core/player/anime4k.dart';
 import '../../ui/widgets.dart';
 import 'player_session.dart';
+import 'tap_zones.dart';
 import 'video_fit.dart';
 
 /// Our own full-screen controls: auto-hiding overlay, big centre play/pause,
@@ -220,18 +221,11 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
   }
 
   // ---- gestures (touch) ----------------------------------------------------------
-  Offset? _lastTap;
-  void _onDoubleTap() {
-    final w = MediaQuery.sizeOf(context).width;
-    final x = _lastTap?.dx ?? w / 2;
-    if (x < w * 0.4) {
-      _seekBy(-10);
-    } else if (x > w * 0.6) {
-      _seekBy(10);
-    } else {
-      _togglePlay();
-    }
-  }
+  void _onDoubleTap(TapZone zone) => switch (zone) {
+        TapZone.back => _seekBy(-10),
+        TapZone.forward => _seekBy(10),
+        TapZone.middle => _togglePlay(),
+      };
 
   Future<void> _dragStart(DragStartDetails d) async {
     final w = MediaQuery.sizeOf(context).width;
@@ -280,16 +274,22 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
           }
         },
         child: Stack(fit: StackFit.expand, children: [
-          // Hit layer
-          GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTapDown: (d) => _lastTap = d.localPosition,
-            onTap: _mobile ? _toggleVisible : _togglePlay,
-            onDoubleTap: _mobile ? _onDoubleTap : () => unawaited(_toggleFullscreen()),
-            onVerticalDragStart: _mobile ? _dragStart : null,
-            onVerticalDragUpdate: _mobile ? _dragUpdate : null,
-            child: const SizedBox.expand(),
-          ),
+          // Hit layer: phones skip by side on double tap; desktop double click
+          // toggles fullscreen.
+          if (_mobile)
+            TapZones(
+              onTap: _toggleVisible,
+              onDoubleTap: _onDoubleTap,
+              onVerticalDragStart: _dragStart,
+              onVerticalDragUpdate: _dragUpdate,
+            )
+          else
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: _togglePlay,
+              onDoubleTap: () => unawaited(_toggleFullscreen()),
+              child: const SizedBox.expand(),
+            ),
           // Overlay
           IgnorePointer(
             ignoring: !showUi,

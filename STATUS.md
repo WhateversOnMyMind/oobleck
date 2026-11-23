@@ -46,6 +46,9 @@ chain was checked live up to the decrypted stream URL, real responses are saved 
 - Fixed: resuming showed "Resumed at 13:46" but played from 0:01. mpv's per-file `start` option did not take on
   the site's HLS streams, and a reload during start-up reset to 0:00. The player now seeks once the stream is
   seekable, confirms the position (retrying), and only then shows the toast (`resume_seek.dart`, tested with a fake player)
+- Fixed: double tap on phones always skipped forward. The side was read from the single-tap recognizer's `onTapDown`,
+  which does not fire when the double tap wins, so a stale position decided. It now comes from `onDoubleTapDown`:
+  left 40 % back 10 s, right 40 % forward 10 s, middle play/pause (`tap_zones.dart`, widget-tested)
 - **Korean UI**: first launch asks English / 한국어 (pre-selects Korean on a Korean phone), remembered in settings,
   changeable in Settings > Language. Every screen, dialog, toast and player message is translated
   (`lib/app/strings.dart`); Flutter's own widgets follow via `flutter_localizations`. Not translated: the developer
@@ -82,6 +85,7 @@ in two attempts). The same tests pass locally with libmpv 0.37 + ffmpeg. The job
 
 ## How to test each feature
 - Library: download an episode from a show page (download icon), open the Downloaded tab, tap the poster, tap the episode, turn Wi-Fi off
+- Double tap (phone): left side goes back 10 s, right side forward 10 s, middle pauses
 - Resume: watch a minute, back out, reopen: toast "Resumed at …"; Home shows it under Continue watching
 - Korean subs: automatic. Open an episode and a Korean fansub is found, saved and turned on ("Korean subtitles · <fansubber>"); downloads save it next to the video. Manual fallback: CC > Search Korean subs manually. Live check: `OOBLECK_LIVE=1 flutter test test/korean_auto_live_test.dart`
 - Subtitle sync: CC > Style & timing, in ms (G / H keys, Shift for 1 s). Saved per season, applied to Korean/imported subtitles only
