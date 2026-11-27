@@ -89,6 +89,13 @@ in two attempts). The same tests pass locally with libmpv 0.37 + ffmpeg. The job
 - Windows fullscreen toggling, and the custom controls' layout/gestures (no UI test drives them yet)
 
 ## How to test each feature
+- Manga: Manga tab > Browse, open a series, tap the heart (Library), tap Start reading. In the reader tap the
+  middle for the menu (mode, upscale, settings), the edges to turn pages. Long strips continue into the next
+  chapter. Library > refresh checks every saved series; new chapters appear in Updates
+- Manga offline: series screen > download icon (next 5 / unread / all) or a chapter's download button; Manga >
+  download icon shows the queue. Pages are saved under Pictures/Oobleck Manga
+- Upscaling: reader menu > Sharpen and upscale (on by default). Visible on small-resolution pages shown on a big screen
+- 11toon live check: `OOBLECK_LIVE=1 flutter test test/toon11_live_test.dart`
 - Library: download an episode from a show page (download icon), open the Downloaded tab, tap the poster, tap the episode, turn Wi-Fi off
 - Double tap (phone): left side goes back 10 s, right side forward 10 s, middle pauses
 - Resume: watch a minute, back out, reopen: toast "Resumed at …"; Home shows it under Continue watching

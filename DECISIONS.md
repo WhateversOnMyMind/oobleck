@@ -20,3 +20,10 @@
 - 2026-11-12: UI text is one `Strings` class with English and Korean side by side per entry (not ARB/gen-l10n): no codegen, both languages can't drift apart, and non-widget code (player toasts) can use it via the language setting.
 - 2026-11-12: The first launch shows a language picker until a language is saved; existing installs see it once after updating.
 - 2026-11-12: iOS builds unsigned in CI (no Apple account in the repo); installing needs sideloading with the owner's Apple ID.
+- 2026-11-27: Manga comes from 11toon (plain HTML, no bot protection, checked live). It sits behind `MangaSource`, separate from the anime `Source`, because the shapes differ (pages vs streams). Storage keys carry the source id (`toon11:<is>`) so another site can be added later.
+- 2026-11-27: The reader follows Mihon's feature set (library with categories, updates, history, browse, per-series reading mode, tap zones, long-strip and paged modes, downloads) but is our own Flutter code; Mihon (Apache-2.0) and the Keiyoushi toon11 extension were read for reference only.
+- 2026-11-27: "Automatic" reading mode decides from the first page: strips taller than 2.2x their width scroll as a webtoon, book pages turn right to left (most paged titles on 11toon are Japanese manga). One tap in the reader menu changes it for the series.
+- 2026-11-27: Chapter lists are fetched page 1 first, then the remaining pages 4 at a time (One Piece: 14 pages in ~4 rounds instead of 14 in a row).
+- 2026-11-27: Upscaling is a GPU spatial filter (FSR 1.0 EASU port plus an RCAS-style sharpen with a range clamp) through Flutter fragment shaders, not a neural model: it runs in real time on every platform with no model download. It only kicks in when a page is drawn larger than its pixels.
+- 2026-11-27: The long-strip reader uses `scrollable_positioned_list` (Google, BSD) to jump to a page and know exactly which page is on screen; plain ListView cannot do either with images of unknown height.
+- 2026-11-27: Offline chapters are plain image files (`<Pictures>/Oobleck Manga/<series>/<chapter>/001.jpg`), not CBZ, so any image viewer can open them and pages can be read while the rest download.

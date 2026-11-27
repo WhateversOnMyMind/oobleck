@@ -180,9 +180,14 @@ final libraryEntriesProvider = Provider<List<LibraryEntry>>((ref) {
   for (final d in downloads.where((d) => d.isDone)) {
     done.putIfAbsent(d.mangaKey, () => {}).add(d.chapterId);
   }
+  // One pass over all reading states (this reruns on every page the reader saves).
+  final states = <String, Map<String, ChapterState>>{};
+  for (final s in db.allChapterStates()) {
+    states.putIfAbsent(s.mangaKey, () => {})[s.chapterId] = s;
+  }
   return [
     for (final m in records.where((m) => m.inLibrary))
-      libraryEntryFor(m, db.chapters(m.key), db.chapterStates(m.key), done[m.key] ?? const {}),
+      libraryEntryFor(m, db.chapters(m.key), states[m.key] ?? const {}, done[m.key] ?? const {}),
   ];
 });
 

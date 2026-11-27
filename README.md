@@ -1,7 +1,7 @@
 # Oobleck
 
-A personal anime player for **Windows** and **Android**, built from one Flutter codebase.
-Plays the raw stream in a native player (libmpv), so there are no ads and no web player.
+A personal anime player and manga / webtoon reader for **Windows**, **Android** and **iOS**, built from one
+Flutter codebase. Plays the raw stream in a native player (libmpv), so there are no ads and no web player.
 
 ## Features
 - **Downloaded** tab: downloaded shows as poster cards, then episodes, one tap plays in the app with subtitles, no internet needed
@@ -11,6 +11,12 @@ Plays the raw stream in a native player (libmpv), so there are no ads and no web
 - Korean subtitle finder (Anissia, optional OpenSubtitles) with SMI / CP949 support
 - Anime4K real-time upscaling (Mode A/B/C, Fast and HQ)
 - Single and batch downloads with a persistent queue (pause, resume, retry, server fallback)
+- **Manga** tab (11toon): Library with categories, sort and filters, Updates (new chapters of your library),
+  History, Browse (latest, popular, completed, daily picks, genre filters, title and author search)
+- Reader: webtoon long strip that flows into the next chapter, vertical with gaps, left-to-right and
+  right-to-left pages, per-series mode, tap zones, pinch / double-tap zoom, page slider, keyboard and volume
+  keys, dimming, grayscale, keep screen on, incognito; offline chapters; GPU sharpen-and-upscale for
+  low-resolution pages
 
 ## Install
 Every push builds artifacts in GitHub Actions (`build` workflow):
@@ -61,5 +67,10 @@ see [server/README.md](server/README.md).
 Space/K play, ←/→ ±5 s, J/L ±10 s, ↑/↓ volume, M mute, F fullscreen, N next, C cycle subtitles,
 [ / ] speed, G/H subtitle sync −/+0.1 s (Shift: 1 s), Z picture fit / zoom / stretch, Esc back.
 
+## Keyboard shortcuts (manga reader)
+↓ / Page Down / Space next, ↑ / Page Up / Shift+Space back, ← / → turn pages (follows right-to-left books),
+Home / End first / last page, N / P next / previous chapter, M or Enter menu, F or F11 fullscreen, Esc back.
+
 ## Licences
 Anime4K shaders (MIT, bloc97/Anime4K) are bundled in `assets/shaders/anime4k/` with their licence.
+The manga upscaler in `shaders/` is based on AMD FidelityFX FSR 1.0 (MIT, see `shaders/LICENSE-FidelityFX-FSR.txt`).
