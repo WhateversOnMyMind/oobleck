@@ -21,6 +21,11 @@ class SyncEngine {
   /// The server accepts up to 5000 items per list per request.
   static const chunk = 4000;
 
+  /// The next pull starts this far before the last one. Another device's
+  /// rows carry the server time its request started, which can be earlier
+  /// than our pull when its writes take a while; re-applying rows is harmless.
+  static const overlapMs = 120000;
+
   Future<void> run(String token) async {
     final since = db.misc<int>(sinceKey) ?? 0;
     final pushedAt = db.misc<int>(pushedAtKey) ?? 0;
@@ -60,15 +65,22 @@ class SyncEngine {
         ));
       }
     }
+    // Signed out or into another account meanwhile: drop this round.
+    if (db.misc<String>(AppDb.syncTokenKey) != token) return;
     final local = {for (final e in db.allHistory()) e.key: e};
-    final merged = mergeRemote(local: local, remote: pull.history, deletions: pull.deletions);
+    // Clears made here while the request was in flight count too, so the
+    // server's copy of what we pushed does not bring cleared entries back.
+    final queued = [
+      for (final d in (db.misc<List>(AppDb.syncPendingDeletionsKey) ?? const [])) SyncDeletion.fromJson(d as Map),
+    ];
+    final merged = mergeRemote(local: local, remote: pull.history, deletions: [...pull.deletions, ...queued]);
     if (merged.remove.isNotEmpty) await db.deleteHistory(merged.remove);
     if (merged.put.isNotEmpty) await db.putHistory(merged.put);
 
     // Clears queued while this round was in flight stay queued.
     final now = db.misc<List>(AppDb.syncPendingDeletionsKey) ?? const [];
     await db.setMisc(AppDb.syncPendingDeletionsKey, now.length > pending.length ? now.sublist(pending.length) : null);
-    await db.setMisc(sinceKey, pull.now);
+    await db.setMisc(sinceKey, pull.now > overlapMs ? pull.now - overlapMs : 0);
     await db.setMisc(pushedAtKey, start);
     await db.setMisc(lastSyncKey, _clock());
   }

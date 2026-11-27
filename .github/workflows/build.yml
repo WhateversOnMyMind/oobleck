@@ -138,8 +138,13 @@ jobs:
           path: oobleck-ios-unsigned.ipa
 
   release:
-    if: startsWith(github.ref, 'refs/tags/v')
-    needs: [test, windows, android, ios]
+    # The unsigned iOS build is a bonus: a failure there does not hold back
+    # the Windows and Android release. The sync worker tests must pass.
+    if: >-
+      always() && startsWith(github.ref, 'refs/tags/v') &&
+      needs.test.result == 'success' && needs['sync-server'].result == 'success' &&
+      needs.windows.result == 'success' && needs.android.result == 'success'
+    needs: [test, sync-server, windows, android, ios]
     runs-on: ubuntu-latest
     permissions:
       contents: write
