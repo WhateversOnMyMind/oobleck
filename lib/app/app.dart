@@ -3,6 +3,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/downloads/download_manager.dart';
+import '../features/manga/manga_providers.dart';
 import '../features/settings/language_screen.dart';
 import '../features/sync/sync_controller.dart';
 import 'providers.dart';
@@ -22,6 +23,7 @@ class _OobleckAppState extends ConsumerState<OobleckApp> with WidgetsBindingObse
     super.initState();
     // Start the download queue so interrupted downloads resume on launch.
     ref.read(downloadManagerProvider);
+    ref.read(mangaDownloaderProvider);
     WidgetsBinding.instance.addObserver(this);
     // Pull history from other devices on launch (no-op when signed out).
     ref.read(syncProvider.notifier).syncSoon();

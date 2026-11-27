@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -16,6 +17,7 @@ import 'package:oobleck/features/manga/manga_detail_screen.dart';
 import 'package:oobleck/features/manga/manga_providers.dart';
 import 'package:oobleck/features/manga/manga_tab.dart';
 import 'package:oobleck/features/reader/reader_controller.dart';
+import 'package:oobleck/features/reader/reader_screen.dart';
 import 'package:oobleck/features/reader/reader_settings.dart';
 
 class FakeMangaSource implements MangaSource {
@@ -138,6 +140,51 @@ void main() {
       await db.close();
       dir.deleteSync(recursive: true);
     });
+  });
+
+  testWidgets('leaving the reader disposes cleanly and saves the chapter', (tester) async {
+    await tester.runAsync(() async {
+      dir = Directory.systemTemp.createTempSync('manga_flow');
+      db = await AppDb.open(dir.path);
+      await refreshSeries(db, source, '7');
+      // No image decoding, shaders or platform plugins in this test.
+      await db.setSetting('reader.mode', 'webtoon');
+      await db.setSetting('reader.upscale', false);
+      await db.setSetting('reader.keepScreenOn', false);
+      await db.setSetting('reader.fullscreen', false);
+    });
+    await tester.pumpWidget(app(const ReaderScreen(mangaKey: 'toon11:7', chapterId: '1')));
+    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 200)));
+    await pumpFor(tester, 4);
+    // Disposing used to read a provider from State.dispose and throw. The
+    // save it makes is a real database write, so it runs in real time.
+    await tester.runAsync(() async {
+      await tester.pumpWidget(const SizedBox());
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+    });
+    expect(tester.takeException(), isNull);
+    await tester.runAsync(() async {
+      expect(db.chapterState('toon11:7', '1'), isNotNull);
+      await db.close();
+      dir.deleteSync(recursive: true);
+    });
+  });
+
+  test('state ticks fire on writes that keep the number of records', () async {
+    final tmp = Directory.systemTemp.createTempSync('manga_ticks');
+    final store = await AppDb.open(tmp.path);
+    await store.saveReading('toon11:7', '1', page: 1, pageCount: 4);
+    final ticks = <int>[];
+    final sub = store.watchChapterStates().listen(ticks.add);
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    await store.setRead('toon11:7', ['1'], true);
+    await store.setBookmarked('toon11:7', ['1'], true);
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    expect(ticks.toSet(), hasLength(ticks.length), reason: 'every value differs');
+    expect(ticks.length, greaterThanOrEqualTo(3));
+    unawaited(sub.cancel());
+    await store.close();
+    tmp.deleteSync(recursive: true);
   });
 
   group('ReaderController', () {

@@ -215,7 +215,9 @@ class _Listing extends ConsumerWidget {
       onRefresh: notifier.reload,
       child: NotificationListener<ScrollNotification>(
         onNotification: (n) {
-          if (n.metrics.pixels > n.metrics.maxScrollExtent - 600 && state.hasNext && !state.loading) unawaited(notifier.loadMore());
+          if (n.metrics.pixels > n.metrics.maxScrollExtent - 600 && state.hasNext && !state.loading && state.error == null) {
+            unawaited(notifier.loadMore());
+          }
           return false;
         },
         child: LayoutBuilder(

@@ -78,7 +78,9 @@ class _ScrollReaderState extends State<ScrollReader> {
   List<_Item> _build() => [
         for (var s = 0; s < c.segments.length; s++) ...[
           for (var p = 0; p < c.segments[s].pages.length; p++) _Item.page(s, p),
-          _Item.transition(s),
+          // A chapter still loading (or failed) has no end card of its own; the
+          // card above it shows its state.
+          if (c.segments[s].pages.isNotEmpty) _Item.transition(s),
         ],
       ];
 
@@ -103,6 +105,8 @@ class _ScrollReaderState extends State<ScrollReader> {
   }
 
   void _onPositions() {
+    // Until the saved position is restored, the list reports its first item.
+    if (!_restored) return;
     final pos = _positions.itemPositions.value.where((p) => p.index < _list.length).toList();
     if (pos.isEmpty) return;
     pos.sort((a, b) => a.index.compareTo(b.index));
@@ -116,7 +120,7 @@ class _ScrollReaderState extends State<ScrollReader> {
       final it = _list[p.index];
       if (it.transition && p.itemLeadingEdge < 1 && _finishedSegments.add(it.segment)) {
         final seg = c.segments[it.segment];
-        if (seg.pages.isNotEmpty) c.onPosition(it.segment, seg.pages.length - 1, 1, finished: true);
+        c.onPosition(it.segment, seg.pages.length - 1, 1, finished: true);
         if (widget.settings.autoNextChapter && it.segment == c.segments.length - 1) unawaited(c.appendNext());
       }
     }
@@ -143,8 +147,11 @@ class _ScrollReaderState extends State<ScrollReader> {
     if (_restored || !_items.isAttached) return;
     _restored = true;
     final i = _indexOf(c.segment, c.page);
-    if (i < 0) return;
-    _items.jumpTo(index: i, alignment: _alignmentFor(i, width, viewport));
+    if (i > 0 || c.offset > 0) _items.jumpTo(index: i.clamp(0, _list.length - 1), alignment: _alignmentFor(i.clamp(0, _list.length - 1), width, viewport));
+    // Report where the reader now is (also when it starts at the top).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _onPositions();
+    });
   }
 
   double _alignmentFor(int index, double width, double viewport) {
@@ -178,7 +185,9 @@ class _ScrollReaderState extends State<ScrollReader> {
             transformationController: _zoom,
             minScale: 1,
             maxScale: 4,
-            scaleEnabled: true,
+            // Pinch zoom on touch screens. On desktop the mouse wheel must scroll;
+            // InteractiveViewer would zoom on every wheel notch.
+            scaleEnabled: Platform.isAndroid || Platform.isIOS,
             panEnabled: true,
             child: ScrollablePositionedList.builder(
               itemCount: _list.length,

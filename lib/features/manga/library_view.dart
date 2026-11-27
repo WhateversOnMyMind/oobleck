@@ -258,17 +258,17 @@ class LibraryViewState extends ConsumerState<LibraryView> {
           icon: const Icon(Icons.label_outline_rounded),
           onPressed: () async {
             await editSeriesCategories(context, ref, _selected.toList());
-            setState(_selected.clear);
+            if (mounted) setState(_selected.clear);
           },
         ),
         IconButton(
           tooltip: tr.markRead,
           icon: const Icon(Icons.done_all_rounded),
           onPressed: () async {
-            for (final k in _selected) {
+            for (final k in _selected.toList()) {
               await db.setRead(k, db.chapters(k).map((c) => c.id), true);
             }
-            setState(_selected.clear);
+            if (mounted) setState(_selected.clear);
           },
         ),
         IconButton(

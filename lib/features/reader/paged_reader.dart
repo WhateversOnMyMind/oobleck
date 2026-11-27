@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -172,7 +173,9 @@ class _PagedReaderState extends State<PagedReader> {
                 onDoubleTapDown: (d) => _doubleTapAt = d.localPosition,
                 onDoubleTap: () => _toggleZoomAt(i),
                 child: InteractiveViewer(
-                  transformationController: _zoomFor(i),
+                      transformationController: _zoomFor(i),
+                  // The wheel turns pages on desktop; zoom there is double click.
+                  scaleEnabled: Platform.isAndroid || Platform.isIOS,
                   minScale: 1,
                   maxScale: 5,
                   child: SizedBox(width: box.maxWidth, height: box.maxHeight, child: _scaled(ref, i, box)),

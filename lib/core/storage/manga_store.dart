@@ -59,7 +59,15 @@ extension MangaStore on AppDb {
     return fresh;
   }
 
-  Stream<int> watchChapterLists() => _watch(_mangaChapters, () => _mangaChapters.length);
+  /// Emits a new number on every change of the stored chapter lists.
+  Stream<int> watchChapterLists() => _ticks(_mangaChapters);
+
+  /// A counter, not the box length: a write that keeps the length (marking a
+  /// chapter read, saving a page) must still notify listeners.
+  Stream<int> _ticks(Box<dynamic> box) {
+    var n = 0;
+    return _watch(box, () => n++);
+  }
 
   // ---- reading state ------------------------------------------------------------
   ChapterState? chapterState(String key, String chapterId) {
@@ -126,7 +134,7 @@ extension MangaStore on AppDb {
     return putChapterState(next);
   }
 
-  Stream<int> watchChapterStates() => _watch(_mangaState, () => _mangaState.length);
+  Stream<int> watchChapterStates() => _ticks(_mangaState);
 
   // ---- history ----------------------------------------------------------------
   /// Last chapter opened per series, most recent first.

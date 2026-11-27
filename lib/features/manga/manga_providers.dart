@@ -170,9 +170,18 @@ Future<String> rememberSummary(AppDb db, MangaSource source, MangaSummary s) asy
 }
 
 // ---- library ---------------------------------------------------------------------------
+/// Chapter lists of the library series. Separate from [libraryEntriesProvider]
+/// so saving the reading position does not decode every list again.
+final _libraryChaptersProvider = Provider<Map<String, List<ChapterRecord>>>((ref) {
+  ref.watch(chapterListTickProvider);
+  final records = ref.watch(mangaRecordsProvider).value ?? const [];
+  final db = ref.read(dbProvider);
+  return {for (final m in records.where((m) => m.inLibrary)) m.key: db.chapters(m.key)};
+});
+
 final libraryEntriesProvider = Provider<List<LibraryEntry>>((ref) {
   ref.watch(chapterStateTickProvider);
-  ref.watch(chapterListTickProvider);
+  final chapters = ref.watch(_libraryChaptersProvider);
   final records = ref.watch(mangaRecordsProvider).value ?? const [];
   final downloads = ref.watch(mangaDownloadsProvider).value ?? const [];
   final db = ref.read(dbProvider);
@@ -187,7 +196,7 @@ final libraryEntriesProvider = Provider<List<LibraryEntry>>((ref) {
   }
   return [
     for (final m in records.where((m) => m.inLibrary))
-      libraryEntryFor(m, db.chapters(m.key), states[m.key] ?? const {}, done[m.key] ?? const {}),
+      libraryEntryFor(m, chapters[m.key] ?? db.chapters(m.key), states[m.key] ?? const {}, done[m.key] ?? const {}),
   ];
 });
 
@@ -293,17 +302,22 @@ class ListingNotifier extends Notifier<ListingState> {
     return const ListingState(loading: true);
   }
 
+  /// Bumped by [reload]; an answer for an older request is dropped.
+  int _request = 0;
+
   Future<void> loadMore() async {
     if ((state.loading && state.page > 0) || !state.hasNext) return;
     if (state.loading && state.items.isNotEmpty) return;
     state = state.copyWith(loading: true, clearError: true);
     final source = ref.read(mangaSourceProvider);
     final page = state.page + 1;
+    final request = _request;
     try {
       final q = query.query;
       final r = q != null
           ? await source.search(q, page: page)
           : await source.browse(query.catalog ?? source.catalogs.first.id, page: page, genres: query.genres);
+      if (request != _request) return;
       final seen = {for (final m in state.items) m.id};
       state = state.copyWith(
         items: [...state.items, ...r.items.where((m) => seen.add(m.id))],
@@ -312,11 +326,13 @@ class ListingNotifier extends Notifier<ListingState> {
         loading: false,
       );
     } catch (e) {
+      if (request != _request) return;
       state = state.copyWith(loading: false, error: e);
     }
   }
 
   Future<void> reload() async {
+    _request++;
     state = const ListingState(loading: true);
     await loadMore();
   }

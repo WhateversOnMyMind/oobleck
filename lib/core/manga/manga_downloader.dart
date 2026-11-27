@@ -148,14 +148,18 @@ class MangaDownloader {
       final chapter = db.chapters(manga.key).where((c) => c.id == d.chapterId).firstOrNull?.toInfo(manga.mangaId) ??
           ChapterInfo(id: d.chapterId, mangaId: manga.mangaId, title: d.chapterTitle, number: d.number);
       final pages = await source.pages(chapter);
+      // Paused or deleted while the page list was loading.
+      if (cancel.isCancelled) return;
       if (pages.isEmpty) throw const FormatException('no pages');
       final folder = Directory(p.join(
         await root(),
         DownloadManager.sanitize(manga.title).ifEmpty(manga.mangaId),
-        DownloadManager.sanitize(d.chapterTitle).ifEmpty(d.chapterId),
+        // The id keeps two chapters with the same title apart.
+        '${DownloadManager.sanitize(d.chapterTitle).ifEmpty(d.chapterId)} (${d.chapterId})',
       ))
         ..createSync(recursive: true);
       rec = rec.copyWith(dir: folder.path, pagesTotal: pages.length);
+      if (cancel.isCancelled) return;
       await db.putMangaDownload(rec);
 
       final files = List<String?>.filled(pages.length, null);
@@ -171,13 +175,17 @@ class MangaDownloader {
           final out = File(p.join(folder.path, name));
           if (!out.existsSync() || out.lengthSync() == 0) {
             final data = await _fetchPage(page, source.imageHeaders, cancel);
-            await out.writeAsBytes(data, flush: true);
+            // Written next to it and renamed, so a killed app never leaves half a page.
+            final part = File('${out.path}.part');
+            await part.writeAsBytes(data, flush: true);
+            await part.rename(out.path);
           }
+          if (cancel.isCancelled) return;
           files[i] = out.path;
           done++;
           bytes += out.lengthSync();
           // Progress is written every few pages to keep the database calm.
-          if (done % 3 == 0 || done == pages.length) {
+          if ((done % 3 == 0 || done == pages.length) && !cancel.isCancelled) {
             rec = rec.copyWith(pagesDone: done, bytes: bytes);
             await db.putMangaDownload(rec);
           }

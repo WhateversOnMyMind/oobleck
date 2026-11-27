@@ -33,6 +33,10 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   final _focus = FocusNode();
   Object? _openError;
   bool _fullscreen = false;
+
+  /// Kept in a field: the controller reads it while saving in dispose, where
+  /// `ref` can no longer be used.
+  late ReaderSettings _settings = ref.read(readerSettingsProvider);
   static const _desktopWindow = MethodChannel('com.alexmercerind/media_kit_video');
 
   bool get _mobile => Platform.isAndroid || Platform.isIOS;
@@ -47,8 +51,9 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
       source: source,
       cache: ref.read(pageCacheProvider),
       mangaKey: widget.mangaKey,
-      settings: () => ref.read(readerSettingsProvider),
+      settings: () => _settings,
     )..addListener(_changed);
+    ref.listenManual(readerSettingsProvider, (_, s) => _settings = s);
     unawaited(c.open(widget.chapterId).catchError((Object e) {
       if (mounted) setState(() => _openError = e);
     }));
@@ -65,11 +70,14 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   @override
   void dispose() {
     c.removeListener(_changed);
-    c.dispose();
-    _focus.dispose();
-    unawaited(WakelockPlus.disable().catchError((_) {}));
-    if (_fullscreen) unawaited(_setFullscreen(false));
-    super.dispose();
+    try {
+      c.dispose();
+    } finally {
+      _focus.dispose();
+      unawaited(WakelockPlus.disable().catchError((_) {}));
+      if (_fullscreen) unawaited(_setFullscreen(false));
+      super.dispose();
+    }
   }
 
   Future<void> _setFullscreen(bool on) async {
@@ -104,6 +112,13 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   KeyEventResult _onKey(FocusNode node, KeyEvent e) {
     if (e is KeyUpEvent) return KeyEventResult.ignored;
     final k = e.logicalKey;
+    // Holding a key scrolls, but must not repeat chapter jumps or toggles.
+    final repeatable = <LogicalKeyboardKey>{
+      LogicalKeyboardKey.arrowDown, LogicalKeyboardKey.arrowUp, LogicalKeyboardKey.arrowLeft, LogicalKeyboardKey.arrowRight,
+      LogicalKeyboardKey.pageDown, LogicalKeyboardKey.pageUp, LogicalKeyboardKey.space,
+      LogicalKeyboardKey.audioVolumeDown, LogicalKeyboardKey.audioVolumeUp,
+    };
+    if (e is KeyRepeatEvent && !repeatable.contains(k)) return KeyEventResult.handled;
     final s = ref.read(readerSettingsProvider);
     final rtl = c.mode == ReaderMode.rtl;
     if (k == LogicalKeyboardKey.audioVolumeDown || k == LogicalKeyboardKey.audioVolumeUp) {

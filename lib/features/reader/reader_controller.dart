@@ -120,15 +120,16 @@ class ReaderController extends ChangeNotifier {
     offset = resume ? st.offset : 0;
     generation++;
     notifyListeners();
-    await _load(segments.first);
+    await _load(segments.first, notify: false);
     if (_disposed) return;
     mode = await _decideMode(segments.first);
+    if (_disposed) return;
     if (page >= segments.first.pages.length) page = 0;
     notifyListeners();
     _scheduleSave();
   }
 
-  Future<void> _load(ReaderChapter rc) async {
+  Future<void> _load(ReaderChapter rc, {bool notify = true}) async {
     rc.loading = true;
     rc.error = null;
     notifyListeners();
@@ -149,7 +150,7 @@ class ReaderController extends ChangeNotifier {
       rc.error = e;
     }
     rc.loading = false;
-    if (!_disposed) notifyListeners();
+    if (notify && !_disposed) notifyListeners();
   }
 
   Future<void> retry() async {
@@ -177,6 +178,7 @@ class ReaderController extends ChangeNotifier {
       await db.putManga(db.manga(mangaKey)!.copyWith(readerMode: m == ReaderMode.auto ? null : m.name));
       manga = db.manga(mangaKey)!;
     }
+    if (current == null) return;
     final next = m == ReaderMode.auto ? await _decideMode(current!) : m;
     if (_disposed) return;
     // Keep only the current chapter when switching layouts.

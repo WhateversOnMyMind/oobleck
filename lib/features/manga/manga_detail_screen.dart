@@ -124,7 +124,8 @@ class _MangaDetailScreenState extends ConsumerState<MangaDetailScreen> {
             ? null
             : FloatingActionButton.extended(
                 onPressed: () {
-                  final target = next ?? (m.chapterSortDesc ? chapters.last : chapters.first);
+                  // Everything read: reopen the newest chapter (the label says so).
+                  final target = next ?? chapters.last;
                   openReader(context, mangaKey: key, chapterId: target.id);
                 },
                 icon: const Icon(Icons.play_arrow_rounded),
@@ -344,7 +345,10 @@ class _MangaDetailScreenState extends ConsumerState<MangaDetailScreen> {
     final allRead = ids.every((id) => states[id]?.read ?? false);
     final allBookmarked = ids.every((id) => states[id]?.bookmarked ?? false);
     final anyDownloaded = ids.any((id) => downloads[id] != null);
-    void done() => setState(_selected.clear);
+    void done() {
+      if (mounted) setState(_selected.clear);
+    }
+
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
