@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../app/strings.dart';
 import '../app/theme.dart';
+import 'hover.dart';
 
 /// Animated placeholder block used instead of spinners.
 class Skeleton extends StatefulWidget {
@@ -111,7 +112,7 @@ class PosterCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
     final card = InkWell(
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(Radii.card),
       onTap: onTap,
       onLongPress: onLongPress,
       child: Column(
@@ -119,31 +120,48 @@ class PosterCard extends StatelessWidget {
         children: [
           AspectRatio(
             aspectRatio: 2 / 3,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(14),
-              child: Stack(fit: StackFit.expand, children: [
-                PosterImage(url: url, localPath: localPath),
-                if (badge != null)
-                  Positioned(
-                    top: 8,
-                    left: 8,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.7), borderRadius: BorderRadius.circular(8)),
-                      child: Text(badge!, style: t.labelSmall?.copyWith(fontWeight: FontWeight.w600)),
-                    ),
+            // Mouse hover lifts the cover with an accent ring; the full title
+            // shows as a tooltip because long titles are cut to two lines.
+            child: HoverBuilder(
+              builder: (context, hovered) => Tooltip(
+                message: title,
+                triggerMode: TooltipTriggerMode.manual,
+                waitDuration: const Duration(milliseconds: 700),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 120),
+                  foregroundDecoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(Radii.card),
+                    color: hovered ? Colors.white.withValues(alpha: 0.06) : Colors.transparent,
+                    border: Border.all(color: hovered ? kAccent : Colors.transparent, width: 2),
                   ),
-                if (progress != null)
-                  Positioned(
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    child: LinearProgressIndicator(value: progress, minHeight: 4, backgroundColor: Colors.black54),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(Radii.card),
+                    child: Stack(fit: StackFit.expand, children: [
+                      PosterImage(url: url, localPath: localPath),
+                      if (badge != null)
+                        Positioned(
+                          top: 8,
+                          left: 8,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.7), borderRadius: BorderRadius.circular(8)),
+                            child: Text(badge!, style: t.labelSmall?.copyWith(fontWeight: FontWeight.w600)),
+                          ),
+                        ),
+                      if (progress != null)
+                        Positioned(
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                          child: LinearProgressIndicator(value: progress, minHeight: 4, backgroundColor: Colors.black54),
+                        ),
+                    ]),
                   ),
-              ]),
+                ),
+              ),
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: Gap.s),
           Text(title, maxLines: 2, overflow: TextOverflow.ellipsis, style: t.bodyMedium?.copyWith(fontWeight: FontWeight.w600, height: 1.2)),
           if (subtitle != null)
             Padding(
