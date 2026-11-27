@@ -70,6 +70,12 @@ class Strings {
   String get couldntLoad => _("Couldn't load", '불러오지 못했어요');
   String get errNetwork => _('Check your internet connection and try again.', '인터넷 연결을 확인하고 다시 시도해 주세요.');
   String get errRefused => _('The site refused the request. Try again in a moment.', '사이트가 요청을 거부했어요. 잠시 후 다시 시도해 주세요.');
+  String get errUnreachable => _(
+      "Couldn't reach the site. It may be blocked on this network (try Wi-Fi or another network), or it may have moved to a new address.",
+      '사이트에 연결하지 못했어요. 이 네트워크에서 막혀 있을 수 있어요(와이파이나 다른 네트워크로 시도해 보세요). 사이트 주소가 바뀌었을 수도 있어요.');
+  String get details => _('Details', '자세히');
+  String get copy => _('Copy', '복사');
+  String get close => _('Close', '닫기');
   String get errGeneric => _('Something went wrong while loading this. Try again.', '불러오는 중 문제가 생겼어요. 다시 시도해 주세요.');
 
   // ---- home --------------------------------------------------------------------

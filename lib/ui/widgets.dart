@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../app/strings.dart';
 import '../app/theme.dart';
@@ -228,7 +229,8 @@ class EmptyState extends StatelessWidget {
   }
 }
 
-/// Friendly error with a retry button. Never shows raw URLs or stack traces.
+/// Friendly error with a retry button. The technical message is one tap away
+/// under Details (for reporting a problem); no stack traces.
 class ErrorState extends StatelessWidget {
   const ErrorState({super.key, required this.error, this.onRetry});
   final Object error;
@@ -236,6 +238,7 @@ class ErrorState extends StatelessWidget {
 
   static String friendly(Object e, [Strings s = Strings.en]) {
     final m = e.toString().toLowerCase();
+    if (m.contains('cannot reach') || m.contains('handshake') || m.contains('certificate')) return s.errUnreachable;
     if (m.contains('socket') || m.contains('connection') || m.contains('timeout') || m.contains('host lookup')) {
       return s.errNetwork;
     }
@@ -248,12 +251,35 @@ class ErrorState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final s = Strings.of(context);
-    return EmptyState(
-      icon: Icons.cloud_off_rounded,
-      title: s.couldntLoad,
-      message: friendly(error, s),
-      actionLabel: s.retry,
-      onAction: onRetry,
+    return Column(mainAxisSize: MainAxisSize.min, mainAxisAlignment: MainAxisAlignment.center, children: [
+      Flexible(
+        child: EmptyState(
+          icon: Icons.cloud_off_rounded,
+          title: s.couldntLoad,
+          message: friendly(error, s),
+          actionLabel: s.retry,
+          onAction: onRetry,
+        ),
+      ),
+      TextButton(onPressed: () => _showDetails(context, s), child: Text(s.details)),
+    ]);
+  }
+
+  void _showDetails(BuildContext context, Strings s) {
+    final text = error.toString();
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(s.details),
+        content: SelectableText(text.length > 800 ? '${text.substring(0, 800)}…' : text),
+        actions: [
+          TextButton(
+            onPressed: () => Clipboard.setData(ClipboardData(text: text)),
+            child: Text(s.copy),
+          ),
+          FilledButton(onPressed: () => Navigator.pop(ctx), child: Text(s.close)),
+        ],
+      ),
     );
   }
 }

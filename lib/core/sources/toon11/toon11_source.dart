@@ -113,7 +113,12 @@ class Toon11Source implements MangaSource {
       });
     } on DioException catch (e) {
       final code = e.response?.statusCode;
-      throw SourceException(code == null ? '11toon: cannot reach the site' : '11toon: request failed (HTTP $code)');
+      if (code != null) throw SourceException('11toon: request failed (HTTP $code)');
+      // Keep the cause (DNS, reset, certificate): a network that blocks the
+      // site fails differently from one that is offline.
+      final cause = (e.error?.toString() ?? e.message ?? '').split('\n').first;
+      final detail = cause.isEmpty ? e.type.name : '${e.type.name}: $cause';
+      throw SourceException('11toon: cannot reach the site ($detail)');
     }
   }
 

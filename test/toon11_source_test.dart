@@ -4,12 +4,14 @@ import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:oobleck/app/strings.dart';
 import 'package:oobleck/core/http.dart';
 import 'package:oobleck/core/manga/manga_models.dart';
 import 'package:oobleck/core/sources/source.dart';
 import 'package:oobleck/core/sources/toon11/toon11_parsers.dart';
 import 'package:oobleck/core/sources/toon11/toon11_source.dart';
 import 'package:oobleck/core/sources/toon11/toon11_titles.dart';
+import 'package:oobleck/ui/widgets.dart';
 
 import 'helpers/fixture_adapter.dart';
 
@@ -437,5 +439,34 @@ void main() {
       await expectLater(
           s.pages(const ChapterInfo(id: '1', mangaId: '2', title: 'x')), throwsA(isA<SourceException>()));
     });
+
+    test('an unreachable site keeps the cause and gets its own message', () async {
+      final dio = Dio()..httpClientAdapter = _Unreachable();
+      final s = Toon11Source(dio: dio);
+      Object? error;
+      try {
+        await s.browse('latest');
+      } catch (e) {
+        error = e;
+      }
+      expect(error, isA<SourceException>());
+      expect(error.toString(), allOf(contains('cannot reach'), contains('HandshakeException')));
+      expect(ErrorState.friendly(error!), Strings.en.errUnreachable);
+      expect(ErrorState.friendly(Exception('SocketException: Failed host lookup')), Strings.en.errNetwork);
+    });
   });
+}
+
+/// Fails every request the way a network that intercepts the site does.
+class _Unreachable implements HttpClientAdapter {
+  @override
+  Future<ResponseBody> fetch(RequestOptions options, Stream<List<int>>? requestStream, Future<void>? cancelFuture) =>
+      throw DioException.connectionError(
+        requestOptions: options,
+        reason: 'handshake failed',
+        error: const HandshakeException('Handshake error in client'),
+      );
+
+  @override
+  void close({bool force = false}) {}
 }
