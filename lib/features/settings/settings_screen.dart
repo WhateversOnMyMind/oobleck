@@ -159,7 +159,10 @@ class SettingsScreen extends ConsumerWidget {
                 ],
               ),
             );
-            if (ok == true) await ref.read(dbProvider).clearHistory();
+            if (ok == true) {
+              await ref.read(dbProvider).clearHistory();
+              ref.read(syncProvider.notifier).syncSoon();
+            }
           },
         ),
         _Header(tr.advanced),

@@ -18,6 +18,22 @@ String hex(List<int> b) => b.map((x) => x.toRadixString(16).padLeft(2, '0')).joi
 HistoryEntry h(String slug, String ep, int pos, int at, {int dur = 1440000}) =>
     HistoryEntry(slug: slug, episode: ep, positionMs: pos, durationMs: dur, updatedAt: at);
 
+/// Answers every round with [reply]; [during] runs while the request is "in flight".
+class _FakeApi extends SyncApi {
+  _FakeApi(this.reply) : super(Dio(), 'https://sync.test');
+  SyncPull Function() reply;
+  Future<void> Function()? during;
+  final sinces = <int>[];
+
+  @override
+  Future<SyncPull> sync(String token,
+      {required int since, required List<HistoryEntry> history, required List<SyncShow> shows, required List<SyncDeletion> deletions}) async {
+    sinces.add(since);
+    await during?.call();
+    return reply();
+  }
+}
+
 void main() {
   group('PBKDF2', () {
     test('RFC 7914 / RFC 6070-style SHA-256 vectors', () {
@@ -53,6 +69,46 @@ void main() {
     });
   });
 
+  group('SyncEngine bookkeeping', () {
+    late Directory dir;
+    late AppDb db;
+    setUp(() async {
+      dir = Directory.systemTemp.createTempSync('sync_engine');
+      db = await AppDb.open(dir.path);
+      await db.setMisc(AppDb.syncTokenKey, 't1');
+    });
+    tearDown(() async {
+      await db.close();
+      dir.deleteSync(recursive: true);
+    });
+
+    test('the next pull overlaps the last one so slow writes elsewhere are not skipped', () async {
+      final api = _FakeApi(() => SyncPull(now: 1000000, history: const [], shows: const [], deletions: const []));
+      await SyncEngine(db, api).run('t1');
+      await SyncEngine(db, api).run('t1');
+      expect(api.sinces, [0, 1000000 - SyncEngine.overlapMs]);
+    });
+
+    test('a clear made while the request is in flight is not undone by the reply', () async {
+      await db.saveProgress('eva', '1', 500, 1000, now: 10);
+      final api = _FakeApi(() => SyncPull(now: 50, history: [h('eva', '1', 500, 10, dur: 1000)], shows: const [], deletions: const []));
+      api.during = () => db.clearShowHistory('eva', now: 20);
+      await SyncEngine(db, api).run('t1');
+      expect(db.historyFor('eva', '1'), isNull);
+      expect(db.misc<List>(AppDb.syncPendingDeletionsKey), hasLength(1), reason: 'still sent next round');
+    });
+
+    test('signing into another account mid-round drops that round', () async {
+      await db.saveProgress('eva', '1', 500, 1000, now: 10);
+      final api = _FakeApi(() => SyncPull(now: 5000000, history: [h('other', '1', 1, 1)], shows: const [], deletions: const []));
+      api.during = () => db.setMisc(AppDb.syncTokenKey, 't2');
+      await SyncEngine(db, api).run('t1');
+      expect(db.misc<int>(SyncEngine.sinceKey), isNull);
+      expect(db.misc<int>(SyncEngine.pushedAtKey), isNull);
+      expect(db.historyFor('other', '1'), isNull);
+    });
+  });
+
   test('sign-in form checks', () {
     String? v({String user = 'asuka', String pw = 'longenough', String? confirm, bool create = false, String server = 'https://x.workers.dev'}) =>
         validateSyncForm(user: user, password: pw, confirm: confirm, create: create, server: server);
@@ -65,6 +121,8 @@ void main() {
     expect(v(create: true, confirm: 'longenough'), isNull);
     expect(v(server: ''), isNotNull);
     expect(v(server: 'oobleck.workers.dev'), isNotNull);
+    expect(v(server: 'http://sync.example.com'), isNotNull, reason: 'the login key would travel in clear text');
+    expect(v(server: 'http://127.0.0.1:8787'), isNull);
     expect(syncedAgo(null, DateTime(2026)), 'Not synced yet');
     expect(syncedAgo(DateTime(2026, 1, 1, 10), DateTime(2026, 1, 1, 10, 5)), 'Synced 5 min ago');
   });

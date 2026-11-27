@@ -1,9 +1,19 @@
 Oobleck is a personal anime player for Windows, Android and iOS.
 
-## New in 1.0.1
-- Fixed: resuming an episode said "Resumed at 13:46" but played from the start. The player now jumps to the saved
-  spot once the stream is ready, checks it got there, and only then shows the message
-- 수정: 이어보기 메시지가 나오는데 처음부터 재생되던 문제를 고쳤어요
+## New in 1.0.2
+- Fixed: double tap on phones always skipped forward. Now the left side goes back 10 s, the right side forward
+  10 s, and the middle pauses
+- Fixed: switching Sub/Dub restarted the episode; it now continues where you were. Progress is no longer saved as
+  0:00 while the player is still jumping to your saved spot
+- Fixed: swiping on the left edge could jump the brightness to full
+- Sync: safer sign-in limits (someone guessing your password can no longer lock you out on your own devices) and
+  steadier syncing between devices
+- 수정: 휴대폰에서 두 번 탭하면 항상 앞으로 넘어가던 문제 (왼쪽은 10초 뒤로, 오른쪽은 10초 앞으로, 가운데는 일시정지)
+- 수정: 자막/더빙을 바꾸면 처음부터 재생되던 문제, 밝기 조절이 갑자기 최대로 바뀌던 문제
+- 동기화가 더 안전하고 안정적이에요
+
+## 1.0.1
+- Fixed: resuming an episode said "Resumed at 13:46" but played from the start
 
 ## What's in it
 - Streaming with server fallback, resume, auto-next and skip intro / outro

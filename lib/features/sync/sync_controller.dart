@@ -83,6 +83,7 @@ class SyncController extends Notifier<SyncState> {
     final key = await deriveLoginKey(username, password);
     final api = _api();
     final acc = create ? await api.register(username.trim(), key) : await api.login(username.trim(), key);
+    await _settle();
     await _engine.reset();
     await _db.setMisc(AppDb.syncTokenKey, acc.token);
     await _db.setMisc(_userKey, acc.username);
@@ -102,10 +103,18 @@ class SyncController extends Notifier<SyncState> {
       }
     }
     _timer?.cancel();
+    await _settle();
     await _db.setMisc(AppDb.syncTokenKey, null);
     await _db.setMisc(_userKey, null);
     await _engine.reset();
     state = SyncState(serverUrl: state.serverUrl);
+  }
+
+  /// Waits for a round in flight so its bookkeeping lands before a reset.
+  Future<void> _settle() async {
+    _again = false;
+    final r = _running;
+    if (r != null) await r.catchError((_) {});
   }
 
   /// Sync a moment from now (lets the player's last progress write land).

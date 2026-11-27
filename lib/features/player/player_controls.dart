@@ -230,17 +230,24 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
   Future<void> _dragStart(DragStartDetails d) async {
     final w = MediaQuery.sizeOf(context).width;
     _gestureLeft = d.globalPosition.dx < w / 2;
+    _gestureDy = 0;
     if (_gestureLeft) {
+      // Updates wait for the current brightness, or they would start from the
+      // previous gesture's value (a 0-100 volume) and jump to full.
+      _gestureReady = false;
       try {
         _gestureStartValue = await ScreenBrightness.instance.application;
       } catch (_) {
         _gestureStartValue = 0.5;
       }
+      _gestureReady = true;
     } else {
       _gestureStartValue = _volume;
+      _gestureReady = true;
     }
-    _gestureDy = 0;
   }
+
+  bool _gestureReady = false;
 
   bool _gestureLeft = true;
   double _gestureDy = 0;
@@ -248,6 +255,7 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
   void _dragUpdate(DragUpdateDetails d) {
     final h = MediaQuery.sizeOf(context).height;
     _gestureDy -= d.delta.dy;
+    if (!_gestureReady) return;
     final frac = _gestureDy / (h * 0.7);
     if (_gestureLeft) {
       final v = (_gestureStartValue + frac).clamp(0.0, 1.0);
@@ -455,7 +463,7 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
 
   Future<void> _cycleFit() async {
     final f = await widget.session.cycleVideoFit();
-    _showHud(f.icon, tr.fitMode(f.name));
+    if (mounted) _showHud(f.icon, tr.fitMode(f.name));
   }
 
   Widget _roundButton(IconData icon, double size, VoidCallback onTap, String tip) => IconButton(

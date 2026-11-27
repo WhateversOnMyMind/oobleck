@@ -52,8 +52,8 @@ const KEY = 'a'.repeat(64);
 const OTHER_KEY = 'b'.repeat(64);
 
 function client(env) {
-  return async (method, path, body, token) => {
-    const headers = { 'content-type': 'application/json' };
+  return async (method, path, body, token, ip = '198.51.100.1') => {
+    const headers = { 'content-type': 'application/json', 'cf-connecting-ip': ip };
     if (token) headers.authorization = `Bearer ${token}`;
     const res = await worker.fetch(
       new Request(`https://sync.test${path}`, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) }),
@@ -93,6 +93,37 @@ test('register, duplicate names, login and lockout', async () => {
 
   for (let i = 0; i < 10; i++) await call('POST', '/v1/login', { username: 'shinji_01', key: OTHER_KEY });
   assert.equal((await call('POST', '/v1/login', { username: 'shinji_01', key: KEY })).status, 429);
+  // Guessing from one address does not lock the owner out elsewhere.
+  const elsewhere = await call('POST', '/v1/login', { username: 'shinji_01', key: KEY }, undefined, '203.0.113.9');
+  assert.equal(elsewhere.status, 200);
+});
+
+test('parallel wrong guesses are all counted', async () => {
+  const { call } = setup();
+  await call('POST', '/v1/register', { username: 'gendo', key: KEY });
+  const results = await Promise.all(
+    Array.from({ length: 30 }, () => call('POST', '/v1/login', { username: 'gendo', key: OTHER_KEY })),
+  );
+  const statuses = results.map((r) => r.status);
+  assert.equal(statuses.filter((s) => s === 401).length, 10);
+  assert.equal(statuses.filter((s) => s === 429).length, 20);
+});
+
+test('new accounts per address are limited', async () => {
+  const { call } = setup();
+  for (let i = 0; i < 5; i++) assert.equal((await call('POST', '/v1/register', { username: `pilot${i}`, key: KEY })).status, 200);
+  assert.equal((await call('POST', '/v1/register', { username: 'pilot5', key: KEY })).status, 429);
+  assert.equal((await call('POST', '/v1/register', { username: 'pilot5', key: KEY }, undefined, '203.0.113.9')).status, 200);
+});
+
+test('idle sessions expire and old ones are pruned', async () => {
+  const { env, call } = setup();
+  const { body: u } = await call('POST', '/v1/register', { username: 'kaji', key: KEY });
+  assert.equal((await call('POST', '/v1/sync', {}, u.token)).status, 200);
+  env.DB.raw.prepare('UPDATE sessions SET last_used = ?').run(Date.now() - 200 * 86_400_000);
+  assert.equal((await call('POST', '/v1/sync', {}, u.token)).status, 401);
+  for (let i = 0; i < 25; i++) await call('POST', '/v1/login', { username: 'kaji', key: KEY });
+  assert.equal(env.DB.raw.prepare('SELECT COUNT(*) AS n FROM sessions').get().n, 20);
 });
 
 test('sync between two devices: newest progress wins, shows travel along', async () => {
@@ -191,4 +222,9 @@ test('bad input', async () => {
   const { body: u } = await call('POST', '/v1/register', { username: 'pen-pen', key: KEY });
   assert.equal((await call('POST', '/v1/sync', { history: 'x' }, u.token)).status, 400);
   assert.equal((await call('POST', '/v1/sync', { history: new Array(5001).fill({}) }, u.token)).status, 400);
+  const big = await worker.fetch(
+    new Request('https://sync.test/v1/login', { method: 'POST', headers: { 'content-length': '5000000' }, body: '{}' }),
+    { DB: fakeD1() },
+  );
+  assert.equal(big.status, 413);
 });

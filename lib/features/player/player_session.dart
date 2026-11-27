@@ -145,6 +145,7 @@ class PlayerSession extends ChangeNotifier {
     request = req;
     phase = SessionPhase.loading;
     errorMessage = null;
+    _failedResume = null;
     servers = [];
     current = null;
     qualities = [];
@@ -269,7 +270,7 @@ class PlayerSession extends ChangeNotifier {
     return completer.future;
   }
 
-  Future<void> _open(StreamSource s, Duration startAt, int id, {String? urlOverride}) async {
+  Future<void> _open(StreamSource s, Duration startAt, int id, {String? urlOverride, bool announce = true}) async {
     current = s;
     subtitleTracks = [...s.subtitles, ..._importedTracks()];
     intro = s.intro;
@@ -278,7 +279,7 @@ class PlayerSession extends ChangeNotifier {
     await player.open(Media(url, httpHeaders: s.headers), play: true);
     if (id != _loadId) return;
     phase = SessionPhase.ready;
-    _afterOpen(startAt, id);
+    _afterOpen(startAt, id, announce: announce);
     unawaited(_loadQualities(s));
     unawaited(_loadSkipTimes());
   }
@@ -287,6 +288,11 @@ class PlayerSession extends ChangeNotifier {
   /// reload after an error). Kept until the seek is confirmed, so a reload
   /// during start-up does not fall back to 0:00.
   Duration? _pendingSeek;
+
+  /// A resume that did not land. Until playback is past [_keepSavedFor], the
+  /// saved position is left alone so it is not replaced with ~0:00.
+  Duration? _failedResume;
+  static const _keepSavedFor = Duration(seconds: 60);
 
   /// Seeks to [at] once mpv can seek, and confirms it (see [seekWhenReady]).
   Future<void> _resumeAt(Duration at, int id, {bool announce = false}) async {
@@ -303,8 +309,10 @@ class PlayerSession extends ChangeNotifier {
     if (id != _loadId || _disposed) return;
     if (!ok) {
       Log.d('player', 'resume: seek to $at did not stick (now at ${player.state.position})');
+      _failedResume = at;
       return;
     }
+    _failedResume = null;
     if (announce) {
       showToast(strings.resumedAt(_fmt(at)), action: strings.startOver, onAction: () {
         unawaited(player.seek(Duration.zero));
@@ -312,7 +320,7 @@ class PlayerSession extends ChangeNotifier {
     }
   }
 
-  void _afterOpen(Duration startAt, int id) {
+  void _afterOpen(Duration startAt, int id, {bool announce = true}) {
     _applySubtitleStyle();
     _pickDefaultSubtitle();
     unawaited(_applyOffset());
@@ -321,7 +329,7 @@ class PlayerSession extends ChangeNotifier {
     unawaited(player.setRate(speed));
     if (startAt > const Duration(seconds: 5)) {
       // The toast appears only once the position is really there.
-      unawaited(_resumeAt(startAt, id, announce: true));
+      unawaited(_resumeAt(startAt, id, announce: announce));
     } else {
       _pendingSeek = null;
     }
@@ -502,21 +510,23 @@ class PlayerSession extends ChangeNotifier {
     quality = q;
     notifyListeners();
     final pos = _pendingSeek ?? player.state.position;
+    final id = _loadId;
     final url = q.url == null ? s.signed(s.url) : s.signed(q.url!);
     await player.open(Media(url, httpHeaders: s.headers), play: true);
-    if (pos > const Duration(seconds: 1)) unawaited(_resumeAt(pos, _loadId));
+    if (id != _loadId || _disposed) return;
+    if (pos > const Duration(seconds: 1)) unawaited(_resumeAt(pos, id));
     await selectSubtitle(subtitle);
   }
 
   // ---- servers --------------------------------------------------------------------
   Future<void> selectServer(StreamSource s) async {
     if (s == current) return;
-    final pos = player.state.position;
+    final pos = _pendingSeek ?? player.state.position;
     final id = ++_loadId;
     phase = SessionPhase.loading;
     notifyListeners();
     try {
-      await _open(s, pos, id);
+      await _open(s, pos, id, announce: false);
     } catch (e) {
       phase = SessionPhase.error;
       errorMessage = strings.errServerNoResponse;
@@ -526,12 +536,13 @@ class PlayerSession extends ChangeNotifier {
 
   Future<void> switchAudio(AudioType t) async {
     if (t == request.type) return;
-    final pos = player.state.position;
+    final pos = _pendingSeek ?? player.state.position;
     saveProgress();
     final req = request.copyWith(type: t);
     request = req;
     await _load(req.copyWith(), resume: false);
-    if (pos > const Duration(seconds: 3)) await player.seek(pos);
+    // Same as a resume: seek once the new stream can seek, and confirm it.
+    if (pos > const Duration(seconds: 3) && phase == SessionPhase.ready) unawaited(_resumeAt(pos, _loadId));
   }
 
   // ---- playback errors ---------------------------------------------------------------
@@ -570,9 +581,15 @@ class PlayerSession extends ChangeNotifier {
 
   // ---- progress --------------------------------------------------------------------------
   void saveProgress() {
+    // While a resume is on its way the position is still ~0:00.
+    if (_pendingSeek != null) return;
     final dur = player.state.duration.inMilliseconds;
     final pos = player.state.position.inMilliseconds;
     if (dur <= 0 || phase != SessionPhase.ready) return;
+    if (_failedResume != null) {
+      if (player.state.position < _keepSavedFor) return;
+      _failedResume = null;
+    }
     unawaited(db.saveProgress(request.slug, request.episode, pos, dur));
   }
 

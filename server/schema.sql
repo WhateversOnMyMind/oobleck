@@ -6,8 +6,8 @@ CREATE TABLE IF NOT EXISTS users (
   username TEXT NOT NULL UNIQUE,      -- lower case
   key_hash TEXT NOT NULL,             -- hex SHA-256(salt || client key)
   key_salt TEXT NOT NULL,             -- hex, 16 random bytes
-  failed INTEGER NOT NULL DEFAULT 0,  -- failed logins in a row
-  locked_until INTEGER NOT NULL DEFAULT 0,
+  failed INTEGER NOT NULL DEFAULT 0,        -- unused since rate limits moved to `attempts`
+  locked_until INTEGER NOT NULL DEFAULT 0,  -- unused, kept so existing databases need no migration
   created_at INTEGER NOT NULL
 );
 
@@ -57,3 +57,11 @@ CREATE TABLE IF NOT EXISTS deletions (
   PRIMARY KEY (user_id, slug)
 );
 CREATE INDEX IF NOT EXISTS deletions_changed ON deletions(user_id, changed_at);
+
+-- Rate limits: events per bucket ("login:<user>:<ip>", "login-ip:<ip>",
+-- "register:<ip>") in fixed 15 minute windows.
+CREATE TABLE IF NOT EXISTS attempts (
+  bucket TEXT PRIMARY KEY,
+  count INTEGER NOT NULL,
+  window_start INTEGER NOT NULL
+);

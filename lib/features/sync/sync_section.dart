@@ -100,7 +100,10 @@ final _userPattern = RegExp(r'^[a-z0-9_.-]{3,32}$');
 String? validateSyncForm({required String user, required String password, String? confirm, required bool create, required String server, Strings tr = Strings.en}) {
   if (server.trim().isEmpty) return tr.errServerAddress;
   final u = Uri.tryParse(server.trim());
-  if (u == null || !(u.scheme == 'https' || u.scheme == 'http') || u.host.isEmpty) return tr.errServerScheme;
+  if (u == null || u.host.isEmpty) return tr.errServerScheme;
+  // The login key and token are password-equivalent: plain http only to this machine.
+  const local = {'localhost', '127.0.0.1', '10.0.2.2', '::1'};
+  if (!(u.scheme == 'https' || (u.scheme == 'http' && local.contains(u.host)))) return tr.errServerScheme;
   if (!_userPattern.hasMatch(user.trim().toLowerCase())) return tr.errUserId;
   if (password.length < 8) return tr.errPassword;
   if (create && confirm != password) return tr.errPasswordsDiffer;
