@@ -1,5 +1,10 @@
 # Status
 
+**2026-11-27, v1.0.2:** a review of the sync, localization, resume and gesture work found no crash-level bugs;
+the fixes are in v1.0.2 (see RELEASE_NOTES.md). The sync worker code is hardened (per-address login limits,
+account and row caps, session expiry) but **the live worker still runs the old code until it is redeployed**:
+`cd server && npx wrangler deploy` (the new `attempts` table is created on first use).
+
 Everything in PLAN.md M0 to M7 is implemented. The cloud build sandbox could not reach the live site, so the
 first run was built against hand-written `SYNTHETIC` fixtures.
 
