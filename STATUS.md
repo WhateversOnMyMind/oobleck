@@ -103,6 +103,10 @@ in two attempts). The same tests pass locally with libmpv 0.37 + ffmpeg. The job
   and has "Find current address"; an address typed there is never replaced automatically. Live check:
   `OOBLECK_LIVE=1 flutter test test/toon11_live_test.dart` (add `OOBLECK_TOON11=http://host:port` to test another address)
 - **Error screens** have a Details button with the technical message (DNS, reset, certificate, HTTP code)
+- **Page images**: each page and its mirror get one quick try in turn (12 s without data counts as failed), and a
+  host that just failed goes last for the next pages, so a blocked image host costs seconds once instead of minutes
+  per page. The reader opens after at most 6 s even if the first image is slow; failed pages show Retry and Details.
+  Tests: `test/page_fetch_test.dart`
 - **Downloads**: queue with pause/resume, resumes at launch, offline reading, "delete read chapters"
 - **Upscaling**: GPU FSR 1.0 based upscale + sharpen, on by default, strength in reader settings
 - **Comfort pass (whole app)**: Esc / mouse back closes pages; hover rings and full-title tooltips on cards; right click

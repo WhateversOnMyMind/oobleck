@@ -7,16 +7,19 @@ import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
 import 'package:path/path.dart' as p;
 
-import '../http.dart';
 import 'manga_models.dart';
+import 'page_fetch.dart';
 
 /// Disk cache for manga page images, so going back a page or re-opening a
 /// chapter does not download it again. Oldest files are dropped once the
 /// cache grows past [maxBytes].
 class PageCache {
-  PageCache({required this.dio, required this.dir, this.maxBytes = 800 * 1024 * 1024});
+  PageCache({required this.dio, required this.dir, this.maxBytes = 800 * 1024 * 1024}) : fetcher = PageFetcher(dio);
 
   final Dio dio;
+
+  /// Shared with the downloader, so both skip an image host that just failed.
+  final PageFetcher fetcher;
   final String dir;
   int maxBytes;
 
@@ -50,27 +53,9 @@ class PageCache {
         // unreadable: download again
       }
     }
-    Uint8List data;
-    try {
-      data = await _fetch(page.url, headers, cancel);
-    } catch (e) {
-      final fb = page.fallback;
-      if (fb == null || (e is DioException && e.type == DioExceptionType.cancel)) rethrow;
-      data = await _fetch(fb, headers, cancel);
-    }
+    final data = await fetcher.fetch(page, headers: headers, cancel: cancel);
     await _store(file, data);
     return data;
-  }
-
-  Future<Uint8List> _fetch(String url, Map<String, String> headers, CancelToken? cancel) async {
-    final r = await withRetry(() => dio.get<List<int>>(
-          url,
-          cancelToken: cancel,
-          options: Options(responseType: ResponseType.bytes, headers: headers),
-        ));
-    final data = r.data;
-    if (data == null || data.isEmpty) throw const FormatException('empty image');
-    return data is Uint8List ? data : Uint8List.fromList(data);
   }
 
   Future<void> _store(File file, Uint8List data) async {

@@ -1,18 +1,17 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import '../downloads/download_manager.dart';
-import '../http.dart';
 import '../log.dart';
 import '../sources/manga_source.dart';
 import '../storage/app_db.dart';
 import '../storage/manga_records.dart';
 import 'manga_models.dart';
+import 'page_fetch.dart';
 
 /// Saves chapters for offline reading, one chapter at a time, a few pages in
 /// parallel. Files go to `<root>/<series>/<chapter>/001.jpg`, so they are
@@ -25,7 +24,11 @@ class MangaDownloader {
     this.rootOverride,
     this.customRoot,
     this.pageConcurrency = 3,
-  });
+    PageFetcher? fetcher,
+  }) : fetcher = fetcher ?? PageFetcher(dio);
+
+  /// Downloads page images, falling back to each page's mirror.
+  final PageFetcher fetcher;
 
   final AppDb db;
   final Dio dio;
@@ -174,7 +177,7 @@ class MangaDownloader {
           final name = (i + 1).toString().padLeft(3, '0') + _ext(page.url);
           final out = File(p.join(folder.path, name));
           if (!out.existsSync() || out.lengthSync() == 0) {
-            final data = await _fetchPage(page, source.imageHeaders, cancel);
+            final data = await fetcher.fetch(page, headers: source.imageHeaders, cancel: cancel);
             // Written next to it and renamed, so a killed app never leaves half a page.
             final part = File('${out.path}.part');
             await part.writeAsBytes(data, flush: true);
@@ -208,23 +211,6 @@ class MangaDownloader {
       }
     } finally {
       _activeKey = null;
-    }
-  }
-
-  Future<Uint8List> _fetchPage(MangaPage page, Map<String, String> headers, CancelToken cancel) async {
-    Future<Uint8List> get(String url) async {
-      final r = await withRetry(() => dio.get<List<int>>(url,
-          cancelToken: cancel, options: Options(responseType: ResponseType.bytes, headers: headers)));
-      final data = r.data;
-      if (data == null || data.isEmpty) throw const FormatException('empty image');
-      return data is Uint8List ? data : Uint8List.fromList(data);
-    }
-
-    try {
-      return await get(page.url);
-    } catch (e) {
-      if (page.fallback == null || cancel.isCancelled) rethrow;
-      return get(page.fallback!);
     }
   }
 

@@ -104,6 +104,9 @@ class ReaderController extends ChangeNotifier {
 
   Map<String, String> get imageHeaders => source?.imageHeaders ?? const {};
 
+  /// Longest wait on the first page when picking the layout automatically.
+  static const decideTimeout = Duration(seconds: 6);
+
   /// Opens [chapterId]; resumes where it was left unless it was finished.
   Future<void> open(String chapterId, {bool fromStart = false}) async {
     manga = db.manga(mangaKey)!;
@@ -166,7 +169,10 @@ class ReaderController extends ChangeNotifier {
     if (chosen != ReaderMode.auto) return chosen;
     if (rc.pages.isEmpty) return ReaderMode.webtoon;
     try {
-      final size = await imageSize(await bytesOf(rc.pages.first));
+      // Don't hold the whole reader on one slow image: the page keeps loading
+      // on its own and shows its own progress or error.
+      final bytes = await bytesOf(rc.pages.first).timeout(decideTimeout);
+      final size = await imageSize(bytes);
       return autoModeFor(size.width, size.height);
     } catch (_) {
       return ReaderMode.webtoon;

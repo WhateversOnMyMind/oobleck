@@ -116,6 +116,7 @@ final mangaDownloaderProvider = Provider<MangaDownloader>((ref) {
     db: ref.watch(dbProvider),
     dio: ref.watch(dioProvider),
     sourceFor: (id) => mangaSourceFor(ref, id),
+    fetcher: ref.watch(pageCacheProvider).fetcher,
     customRoot: () => ref.read(settingsProvider).downloadDir,
   );
   unawaited(d.restore());

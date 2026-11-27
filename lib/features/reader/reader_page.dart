@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 
 import '../../app/strings.dart';
 import '../manga/manga_strings.dart';
+import '../../ui/widgets.dart';
 import 'page_paint.dart';
 import 'reader_controller.dart';
 
@@ -144,6 +145,11 @@ class _ReaderPageState extends State<ReaderPage> {
               },
               icon: const Icon(Icons.refresh_rounded),
               label: Text(tr.retry),
+            ),
+            TextButton(
+              onPressed: () => showErrorDetails(context, _error!),
+              style: TextButton.styleFrom(foregroundColor: Colors.white60),
+              child: Text(tr.details),
             ),
           ])
         : Column(mainAxisSize: MainAxisSize.min, children: [

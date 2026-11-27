@@ -261,27 +261,29 @@ class ErrorState extends StatelessWidget {
           onAction: onRetry,
         ),
       ),
-      TextButton(onPressed: () => _showDetails(context, s), child: Text(s.details)),
+      TextButton(onPressed: () => showErrorDetails(context, error), child: Text(s.details)),
     ]);
   }
+}
 
-  void _showDetails(BuildContext context, Strings s) {
-    final text = error.toString();
-    showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(s.details),
-        content: SelectableText(text.length > 800 ? '${text.substring(0, 800)}…' : text),
-        actions: [
-          TextButton(
-            onPressed: () => Clipboard.setData(ClipboardData(text: text)),
-            child: Text(s.copy),
-          ),
-          FilledButton(onPressed: () => Navigator.pop(ctx), child: Text(s.close)),
-        ],
-      ),
-    );
-  }
+/// The technical message behind an error, selectable and copyable.
+void showErrorDetails(BuildContext context, Object error) {
+  final s = Strings.of(context);
+  final text = error.toString();
+  showDialog<void>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: Text(s.details),
+      content: SelectableText(text.length > 800 ? '${text.substring(0, 800)}…' : text),
+      actions: [
+        TextButton(
+          onPressed: () => Clipboard.setData(ClipboardData(text: text)),
+          child: Text(s.copy),
+        ),
+        FilledButton(onPressed: () => Navigator.pop(ctx), child: Text(s.close)),
+      ],
+    ),
+  );
 }
 
 String formatDuration(Duration d) {
