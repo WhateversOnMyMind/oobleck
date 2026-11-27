@@ -51,3 +51,6 @@ app.*.map.json
 server/node_modules/
 server/.wrangler/
 server/.dev.vars
+
+# Local agent worktrees
+.claude/worktrees/
