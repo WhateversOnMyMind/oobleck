@@ -9,10 +9,6 @@ import '../manga/manga_strings.dart';
 import 'page_paint.dart';
 import 'reader_controller.dart';
 
-/// Decoded page images are kept at most this tall; taller strips are scaled
-/// down to stay inside GPU texture limits.
-const _maxDecodeHeight = 16000;
-
 /// One page: loads the bytes, decodes them no larger than needed, and draws
 /// them (sharpened and upscaled when they are smaller than the screen).
 class ReaderPage extends StatefulWidget {
@@ -95,7 +91,8 @@ class _ReaderPageState extends State<ReaderPage> {
       final codec = await ui.instantiateImageCodecWithSize(buffer, getTargetSize: (w, h) {
         var tw = w;
         if (w > targetW) tw = targetW;
-        if (h * tw / w > _maxDecodeHeight) tw = (w * _maxDecodeHeight / h).floor();
+        // Taller strips are scaled down to stay inside GPU texture limits.
+        if (h * tw / w > maxPageTextureSide) tw = (w * maxPageTextureSide / h).floor();
         return tw == w ? ui.TargetImageSize(width: w, height: h) : ui.TargetImageSize(width: tw);
       });
       final frame = await codec.getNextFrame();

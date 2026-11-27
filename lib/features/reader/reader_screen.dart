@@ -9,6 +9,7 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../../app/providers.dart';
 import '../../app/strings.dart';
+import '../../core/manga/upscale/upscaler.dart';
 import '../../ui/widgets.dart';
 import '../manga/manga_providers.dart';
 import '../manga/manga_strings.dart';
@@ -52,6 +53,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
       if (mounted) setState(() => _openError = e);
     }));
     final s = ref.read(readerSettingsProvider);
+    if (s.upscale) unawaited(Upscaler.load());
     if (s.keepScreenOn) unawaited(WakelockPlus.enable().catchError((_) {}));
     if (s.fullscreen && _mobile) unawaited(_setFullscreen(true));
   }

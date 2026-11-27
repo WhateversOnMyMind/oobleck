@@ -12,6 +12,7 @@ import '../../core/models.dart';
 import '../../core/player/anime4k.dart';
 import '../../core/storage/records.dart';
 import '../../ui/widgets.dart';
+import '../manga/manga_settings_section.dart';
 import '../sync/sync_controller.dart';
 import '../sync/sync_section.dart';
 import 'diagnostics_screen.dart';
@@ -165,6 +166,7 @@ class SettingsScreen extends ConsumerWidget {
             }
           },
         ),
+        const MangaSettingsSection(),
         _Header(tr.advanced),
         ExpansionTile(
           leading: const Icon(Icons.build_outlined),

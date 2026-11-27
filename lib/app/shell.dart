@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../features/home/home_screen.dart';
 import '../features/library/library_screen.dart';
+import '../features/manga/manga_strings.dart';
+import '../features/manga/manga_tab.dart';
 import '../features/search/search_screen.dart';
 import '../features/settings/settings_screen.dart';
 import 'strings.dart';
@@ -21,6 +23,7 @@ class _ShellState extends State<Shell> {
     final s = Strings.of(context);
     final destinations = [
       (Icons.home_outlined, Icons.home_rounded, s.navHome),
+      (Icons.menu_book_outlined, Icons.menu_book_rounded, s.navManga),
       (Icons.search_rounded, Icons.search_rounded, s.navSearch),
       (Icons.download_for_offline_outlined, Icons.download_for_offline_rounded, s.navDownloaded),
       (Icons.settings_outlined, Icons.settings_rounded, s.navSettings),
@@ -28,6 +31,7 @@ class _ShellState extends State<Shell> {
     final wide = MediaQuery.sizeOf(context).width >= 800;
     final pages = [
       const HomeScreen(),
+      const MangaTab(),
       const SearchScreen(),
       const LibraryScreen(),
       const SettingsScreen(),
