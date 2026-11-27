@@ -342,7 +342,7 @@ class _ShowScreenState extends ConsumerState<ShowScreen> {
       PopupMenuButton<bool>(
         tooltip: tr.more,
         enabled: _selected.isNotEmpty,
-        onSelected: (watched) => unawaited(_markSelected(b, watched: watched)),
+        onSelected: (watched) => unawaited(_markSelected(watched: watched)),
         itemBuilder: (_) => [
           PopupMenuItem(value: true, child: _MenuRow(Icons.check_circle_outline_rounded, tr.markAsWatched)),
           PopupMenuItem(value: false, child: _MenuRow(Icons.radio_button_unchecked_rounded, tr.markAsUnwatched)),
@@ -376,7 +376,7 @@ class _ShowScreenState extends ConsumerState<ShowScreen> {
     });
   }
 
-  Future<void> _markSelected(ShowBundle b, {required bool watched}) async {
+  Future<void> _markSelected({required bool watched}) async {
     final downloads = ref.read(downloadsProvider).value ?? const <DownloadRecord>[];
     final durations = {
       for (final n in _selected) n: downloads.where((d) => d.slug == widget.slug && d.episode == n).firstOrNull?.durationMs ?? 0,

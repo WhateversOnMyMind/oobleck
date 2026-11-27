@@ -1,13 +1,13 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/providers.dart';
 import '../../app/strings.dart';
 import '../../core/storage/app_db.dart';
 import '../../ui/widgets.dart';
+import '../../ui/feedback.dart';
 import '../reader/open_reader.dart';
 import 'manga_detail_screen.dart';
 import 'manga_logic.dart';
@@ -187,7 +187,7 @@ class LibraryViewState extends ConsumerState<LibraryView> {
     ]);
   }
 
-  List<(String, Color)> _badges(Strings tr, LibraryEntry e, LibraryPrefs prefs) => [
+  List<(String, Color)> _badges(LibraryEntry e, LibraryPrefs prefs) => [
         if (prefs.unreadBadge && e.unread > 0) ('${e.unread}', Theme.of(context).colorScheme.primary),
         if (e.downloaded > 0) ('${e.downloaded}', const Color(0xFF2E7D5B)),
       ];
@@ -206,11 +206,11 @@ class LibraryViewState extends ConsumerState<LibraryView> {
         headers: headers,
         compact: prefs.display == 'compact',
         subtitle: e.unread > 0 ? tr.unreadCount(e.unread) : tr.chapterCount(e.total),
-        badges: _badges(tr, e, prefs),
+        badges: _badges(e, prefs),
         selected: _selected.contains(e.manga.key),
         onTap: () => _open(e),
         onLongPress: () {
-          HapticFeedback.selectionClick();
+          hapticTick();
           _toggle(e.manga.key);
         },
         onContinue: prefs.continueButton && e.next != null && !selecting
@@ -223,10 +223,7 @@ class LibraryViewState extends ConsumerState<LibraryView> {
     return ListTile(
       selected: selected,
       selectedTileColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
-      leading: ClipRRect(
-        borderRadius: BorderRadius.circular(8),
-        child: SizedBox(width: 44, height: 62, child: MangaCover(url: e.manga.cover, localPath: e.manga.coverPath, headers: headers)),
-      ),
+      leading: MangaThumb(e.manga, headers: headers),
       title: Text(e.manga.title, maxLines: 1, overflow: TextOverflow.ellipsis),
       subtitle: Text(e.unread > 0 ? tr.unreadCount(e.unread) : tr.chapterCount(e.total)),
       trailing: e.next != null && prefs.continueButton && !selecting
@@ -276,22 +273,20 @@ class LibraryViewState extends ConsumerState<LibraryView> {
           icon: const Icon(Icons.favorite_rounded),
           onPressed: () async {
             final keys = _selected.toList();
-            final messenger = ScaffoldMessenger.of(context);
             for (final k in keys) {
               await db.setInLibrary(k, false);
             }
+            if (!mounted) return;
             setState(_selected.clear);
-            messenger.showSnackBar(SnackBar(
-              content: Text(tr.removedFromLibrary(keys.length == 1 ? (db.manga(keys.first)?.title ?? '') : tr.selectedCount(keys.length))),
-              action: SnackBarAction(
-                label: tr.undo,
-                onPressed: () async {
-                  for (final k in keys) {
-                    await db.setInLibrary(k, true);
-                  }
-                },
-              ),
-            ));
+            showAppSnackBar(
+              context,
+              tr.removedFromLibrary(keys.length == 1 ? (db.manga(keys.first)?.title ?? '') : tr.selectedCount(keys.length)),
+              onUndo: () async {
+                for (final k in keys) {
+                  await db.setInLibrary(k, true);
+                }
+              },
+            );
           },
         ),
       ]),

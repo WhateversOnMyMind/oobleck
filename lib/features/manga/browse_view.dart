@@ -9,6 +9,7 @@ import '../../core/manga/manga_models.dart';
 import '../../core/storage/app_db.dart';
 import '../../core/storage/manga_records.dart';
 import '../../ui/widgets.dart';
+import '../../ui/feedback.dart';
 import 'manga_detail_screen.dart';
 import 'manga_providers.dart';
 import 'manga_strings.dart';
@@ -250,12 +251,8 @@ class _Listing extends ConsumerWidget {
                       final key = await rememberSummary(db, source, m);
                       await db.setInLibrary(key, !saved);
                       if (!context.mounted) return;
-                      ScaffoldMessenger.of(context)
-                        ..hideCurrentSnackBar()
-                        ..showSnackBar(SnackBar(
-                          content: Text(saved ? tr.removedFromLibrary(m.title) : tr.addedToLibrary(m.title)),
-                          action: SnackBarAction(label: tr.undo, onPressed: () => db.setInLibrary(key, saved)),
-                        ));
+                      showAppSnackBar(context, saved ? tr.removedFromLibrary(m.title) : tr.addedToLibrary(m.title),
+                          onUndo: () => db.setInLibrary(key, saved));
                       if (!saved) unawaited(ref.read(mangaRefreshProvider(mangaKeyOf(source.id, m.id)).future).then((_) {}, onError: (_) {}));
                     },
                   );

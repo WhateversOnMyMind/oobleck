@@ -20,6 +20,9 @@ import '../sync/sync_controller.dart';
 import '../sync/sync_section.dart';
 import 'diagnostics_screen.dart';
 
+/// Video servers the player can use, in the default order.
+const _servers = ['HD-1', 'HD-2', 'Vidstream-1', 'Vidstream-2', 'Kiwi'];
+
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
@@ -56,8 +59,8 @@ class SettingsScreen extends ConsumerWidget {
             title: tr.preferredServer,
             subtitle: tr.preferredServerHint,
             value: s.serverOrder.first,
-            options: {for (final x in const ['HD-1', 'HD-2', 'Vidstream-1', 'Vidstream-2', 'Kiwi']) x: x},
-            onChanged: (v) => n.set('serverOrder', [v, ...const ['HD-1', 'HD-2', 'Vidstream-1', 'Vidstream-2', 'Kiwi'].where((x) => x != v)]),
+            options: {for (final x in _servers) x: x},
+            onChanged: (v) => n.set('serverOrder', [v, ..._servers.where((x) => x != v)]),
           ),
           SwitchListTile(
             secondary: const Icon(Icons.skip_next_rounded),

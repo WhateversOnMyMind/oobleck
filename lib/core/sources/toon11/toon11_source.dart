@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 
 import '../../http.dart';
 import '../../manga/manga_models.dart';
+import '../../pool.dart';
 import '../manga_source.dart';
 import '../source.dart';
 import 'toon11_parsers.dart';
@@ -114,11 +115,7 @@ class Toon11Source implements MangaSource {
     } on DioException catch (e) {
       final code = e.response?.statusCode;
       if (code != null) throw SourceException('11toon: request failed (HTTP $code)');
-      // Keep the cause (DNS, reset, certificate): a network that blocks the
-      // site fails differently from one that is offline.
-      final cause = (e.error?.toString() ?? e.message ?? '').split('\n').first;
-      final detail = cause.isEmpty ? e.type.name : '${e.type.name}: $cause';
-      throw SourceException('11toon: cannot reach the site ($detail)');
+      throw SourceException('11toon: cannot reach the site (${describeDioError(e)})');
     }
   }
 
@@ -179,15 +176,8 @@ class Toon11Source implements MangaSource {
     // The pager on page 1 already tells how many pages there are, so the rest
     // can be fetched side by side instead of walking "next" links.
     final bodies = List<String?>.filled(lastPage + 1, null)..[1] = first;
-    var next = 2;
-    Future<void> worker() async {
-      while (next <= lastPage) {
-        final page = next++;
-        bodies[page] = await listPage(page);
-      }
-    }
-
-    await Future.wait([for (var i = 0; i < chapterListConcurrency; i++) worker()]);
+    await forEachLimited([for (var page = 2; page <= lastPage; page++) page], chapterListConcurrency,
+        (page) async => bodies[page] = await listPage(page));
 
     // A chapter published mid-fetch shifts the pages by one; drop the repeats.
     final seen = <String>{};

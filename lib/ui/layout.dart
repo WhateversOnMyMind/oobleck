@@ -7,6 +7,9 @@ import '../app/theme.dart';
 /// True on platforms that are driven with a mouse and keyboard.
 bool get isDesktop => Platform.isWindows || Platform.isLinux || Platform.isMacOS;
 
+/// True on phones and tablets.
+bool get isMobile => Platform.isAndroid || Platform.isIOS;
+
 /// How many poster columns fit in [width] (the grid's full width, before its
 /// side padding). Phones get three smaller covers per row; wide windows get as
 /// many ~170 px covers as fit.
@@ -49,12 +52,11 @@ SliverGridDelegate posterGridDelegate(BuildContext context, double width, {bool 
 }
 
 /// Caps a sliver's width so lists stay readable on wide windows. It stays
-/// at the left, in line with the page title, unless [centered].
+/// at the left, in line with the page title.
 class SliverMaxWidth extends StatelessWidget {
-  const SliverMaxWidth({super.key, required this.sliver, this.maxWidth = 760, this.centered = false});
+  const SliverMaxWidth({super.key, required this.sliver, this.maxWidth = 760});
   final Widget sliver;
   final double maxWidth;
-  final bool centered;
 
   @override
   Widget build(BuildContext context) {
@@ -62,7 +64,7 @@ class SliverMaxWidth extends StatelessWidget {
       builder: (context, c) {
         final extra = c.crossAxisExtent > maxWidth ? c.crossAxisExtent - maxWidth : 0.0;
         return SliverPadding(
-          padding: centered ? EdgeInsets.symmetric(horizontal: extra / 2) : EdgeInsets.only(right: extra),
+          padding: EdgeInsets.only(right: extra),
           sliver: sliver,
         );
       },

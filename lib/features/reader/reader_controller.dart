@@ -54,7 +54,6 @@ class ReaderChapter {
   List<ReaderPageRef> pages = const [];
   Object? error;
   bool loading = true;
-  bool offline = false;
 }
 
 /// State of an open reader: which chapters are loaded, where the reader is,
@@ -115,13 +114,13 @@ class ReaderController extends ChangeNotifier {
     final rec = chapters.where((c) => c.id == chapterId).firstOrNull;
     if (rec == null) throw StateError('chapter $chapterId not found');
     final st = db.chapterState(mangaKey, chapterId);
-    final resume = !fromStart && st != null && !st.read && (st.page > 0 || st.offset > 0);
+    final resume = !fromStart && (st?.started ?? false);
     segments
       ..clear()
       ..add(ReaderChapter(rec));
     segment = 0;
-    page = resume ? st.page : 0;
-    offset = resume ? st.offset : 0;
+    page = resume ? st!.page : 0;
+    offset = resume ? st!.offset : 0;
     generation++;
     notifyListeners();
     await _load(segments.first, notify: false);
@@ -139,10 +138,11 @@ class ReaderController extends ChangeNotifier {
     notifyListeners();
     try {
       final dl = db.mangaDownload(ChapterState.keyOf(mangaKey, rc.chapter.id));
-      final files = dl?.isDone == true ? dl!.files.where((f) => File(f).existsSync()).toList() : const <String>[];
-      if (dl?.isDone == true && files.length == dl!.files.length && files.isNotEmpty) {
+      final files = dl?.isDone == true ? dl!.files : const <String>[];
+      // Read offline only when every saved page is still there.
+      final present = await Future.wait([for (final f in files) File(f).exists()]);
+      if (files.isNotEmpty && !present.contains(false)) {
         rc.pages = [for (var i = 0; i < files.length; i++) ReaderPageRef.file(i, files[i])];
-        rc.offline = true;
       } else {
         final src = source;
         if (src == null) throw StateError('source unavailable');
@@ -184,11 +184,10 @@ class ReaderController extends ChangeNotifier {
     }
   }
 
-  Future<void> setMode(ReaderMode m, {bool forSeries = true}) async {
-    if (forSeries) {
-      await db.putManga(db.manga(mangaKey)!.copyWith(readerMode: m == ReaderMode.auto ? null : m.name));
-      manga = db.manga(mangaKey)!;
-    }
+  /// Switches the layout and remembers it for this series.
+  Future<void> setMode(ReaderMode m) async {
+    await db.putManga(db.manga(mangaKey)!.copyWith(readerMode: m == ReaderMode.auto ? null : m.name));
+    manga = db.manga(mangaKey)!;
     if (current == null) return;
     final next = m == ReaderMode.auto ? await _decideMode(current!) : m;
     if (_disposed) return;
@@ -203,8 +202,15 @@ class ReaderController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Bytes of a page. Only real images come back (downloads, the cache and
+  /// saved chapters are all checked), so the decoder never sees an error page.
   Future<Uint8List> bytesOf(ReaderPageRef p) {
-    if (p.file != null) return File(p.file!).readAsBytes();
+    if (p.file != null) {
+      return File(p.file!).readAsBytes().then((b) {
+        if (sniffImage(b) == null) throw FormatException('not an image (${describeNonImage(b)})');
+        return b;
+      });
+    }
     return cache.bytes(p.remote!, headers: imageHeaders);
   }
 
@@ -250,9 +256,10 @@ class ReaderController extends ChangeNotifier {
   }
 
   void _saveNow({int? segment, bool finished = false}) {
-    final s = segments.elementAtOrNull(segment ?? this.segment);
+    final index = segment ?? this.segment;
+    final s = segments.elementAtOrNull(index);
     if (s == null || s.pages.isEmpty) return;
-    final isCurrent = (segment ?? this.segment) == this.segment;
+    final isCurrent = index == this.segment;
     unawaited(db.saveReading(
       mangaKey,
       s.chapter.id,
@@ -288,9 +295,9 @@ class ReaderController extends ChangeNotifier {
   }
 
   /// Jumps to another chapter (from the menu or the end of a paged chapter).
-  Future<void> goTo(ChapterRecord c, {bool fromStart = true}) async {
+  Future<void> goTo(ChapterRecord c) async {
     flush();
-    await open(c.id, fromStart: fromStart);
+    await open(c.id, fromStart: true);
   }
 
   void toggleMenu([bool? show]) {
@@ -316,7 +323,6 @@ Future<({int width, int height})> imageSize(Uint8List bytes) async {
   // The header is enough for the common formats and needs no decoder.
   final quick = headerSize(bytes);
   if (quick != null) return quick;
-  if (sniffImage(bytes) == null) throw FormatException('not an image (${describeNonImage(bytes)})');
   final buffer = await ui.ImmutableBuffer.fromUint8List(bytes);
   final desc = await ui.ImageDescriptor.encoded(buffer);
   final r = (width: desc.width, height: desc.height);

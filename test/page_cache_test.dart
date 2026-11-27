@@ -5,6 +5,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:oobleck/core/manga/manga_models.dart';
 import 'package:oobleck/core/manga/page_cache.dart';
+import 'package:oobleck/core/manga/page_fetch.dart';
 
 final jpeg = Uint8List.fromList([0xff, 0xd8, 0xff, 0xe0, ...List.filled(64, 7)]);
 
@@ -29,7 +30,7 @@ void main() {
 
   test('a downloaded page is returned, shared between callers and read from disk later', () async {
     final net = Counting();
-    final cache = PageCache(dio: Dio()..httpClientAdapter = net, dir: dir.path);
+    final cache = PageCache(fetcher: PageFetcher(Dio()..httpClientAdapter = net), dir: dir.path);
     const page = MangaPage(0, 'https://img.test/0.jpg');
     // Two readers of the same page share one download, and both get the bytes
     // (this used to wait forever once the download had finished).
@@ -42,7 +43,7 @@ void main() {
 
   test('a cached error page is fetched again', () async {
     final net = Counting();
-    final cache = PageCache(dio: Dio()..httpClientAdapter = net, dir: dir.path);
+    final cache = PageCache(fetcher: PageFetcher(Dio()..httpClientAdapter = net), dir: dir.path);
     const page = MangaPage(0, 'https://img.test/1.jpg');
     File(cache.pathFor(page.url))
       ..parent.createSync(recursive: true)

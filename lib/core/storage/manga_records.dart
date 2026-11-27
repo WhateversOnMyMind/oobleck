@@ -24,7 +24,6 @@ class MangaRecord {
     this.readerMode,
     this.chapterSortDesc = true,
     this.chapterFilter = 'all',
-    this.upscale,
   });
 
   final String sourceId;
@@ -56,9 +55,6 @@ class MangaRecord {
   /// all | unread | downloaded | bookmarked
   final String chapterFilter;
 
-  /// Per-series upscaling override, null = app default.
-  final bool? upscale;
-
   String get key => mangaKeyOf(sourceId, mangaId);
 
   factory MangaRecord.fromDetail(String sourceId, MangaDetail d, {MangaRecord? existing}) => MangaRecord(
@@ -80,7 +76,6 @@ class MangaRecord {
         readerMode: existing?.readerMode,
         chapterSortDesc: existing?.chapterSortDesc ?? true,
         chapterFilter: existing?.chapterFilter ?? 'all',
-        upscale: existing?.upscale,
       );
 
   factory MangaRecord.fromSummary(String sourceId, MangaSummary s) =>
@@ -99,7 +94,6 @@ class MangaRecord {
     Object? readerMode = _unset,
     bool? chapterSortDesc,
     String? chapterFilter,
-    Object? upscale = _unset,
   }) =>
       MangaRecord(
         sourceId: sourceId,
@@ -120,10 +114,7 @@ class MangaRecord {
         readerMode: identical(readerMode, _unset) ? this.readerMode : readerMode as String?,
         chapterSortDesc: chapterSortDesc ?? this.chapterSortDesc,
         chapterFilter: chapterFilter ?? this.chapterFilter,
-        upscale: identical(upscale, _unset) ? this.upscale : upscale as bool?,
       );
-
-  MangaSummary toSummary() => MangaSummary(id: mangaId, title: title, cover: cover);
 
   Map<String, dynamic> toMap() => {
         'sourceId': sourceId,
@@ -144,7 +135,6 @@ class MangaRecord {
         'readerMode': readerMode,
         'chapterSortDesc': chapterSortDesc,
         'chapterFilter': chapterFilter,
-        'upscale': upscale,
       };
 
   factory MangaRecord.fromMap(Map<dynamic, dynamic> m) => MangaRecord(
@@ -166,7 +156,6 @@ class MangaRecord {
         readerMode: m['readerMode'] as String?,
         chapterSortDesc: m['chapterSortDesc'] as bool? ?? true,
         chapterFilter: m['chapterFilter'] as String? ?? 'all',
-        upscale: m['upscale'] as bool?,
       );
 }
 
@@ -337,7 +326,7 @@ enum MangaDownloadStatus {
   done,
   failed;
 
-  static MangaDownloadStatus parse(String? s) => values.where((v) => v.name == s).firstOrNull ?? queued;
+  static MangaDownloadStatus parse(String? s) => values.asNameMap()[s] ?? queued;
 }
 
 /// A chapter saved for offline reading: one image file per page in [dir].

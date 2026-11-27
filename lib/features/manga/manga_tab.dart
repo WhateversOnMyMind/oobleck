@@ -59,10 +59,12 @@ class _MangaTabState extends ConsumerState<MangaTab> with SingleTickerProviderSt
   @override
   Widget build(BuildContext context) {
     final tr = Strings.of(context);
-    final downloads = ref.watch(mangaDownloadsProvider).value ?? const <MangaDownloadRecord>[];
-    final active = downloads.where((d) => d.status == MangaDownloadStatus.running || d.status == MangaDownloadStatus.queued).length;
+    // Counts only, so download progress does not rebuild the whole tab.
+    final active = ref.watch(mangaDownloadsProvider.select((a) => (a.value ?? const <MangaDownloadRecord>[])
+        .where((d) => d.status == MangaDownloadStatus.running || d.status == MangaDownloadStatus.queued)
+        .length));
     final refreshing = ref.watch(libraryRefresherProvider).running;
-    final updates = ref.watch(mangaUpdatesProvider).value?.length ?? 0;
+    final updates = ref.watch(mangaUpdatesProvider.select((a) => a.value?.length ?? 0));
 
     final downloadsButton = IconButton(
       tooltip: tr.mangaDownloads,

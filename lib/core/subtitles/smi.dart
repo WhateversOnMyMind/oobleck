@@ -68,9 +68,6 @@ List<SubCue> parseSmi(String text, {String? className}) {
   return cues;
 }
 
-/// Class names present in a SAMI document (for a language picker).
-List<String> smiClasses(String text) => {for (final m in _pClass.allMatches(text)) m.group(1)!}.toList();
-
 String _ts(int ms, String sep) {
   final h = (ms ~/ 3600000).toString().padLeft(2, '0');
   final m = ((ms ~/ 60000) % 60).toString().padLeft(2, '0');

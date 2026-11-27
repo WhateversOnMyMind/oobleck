@@ -7,16 +7,17 @@ import 'package:path/path.dart' as p;
 
 import '../../app/providers.dart';
 import '../../core/log.dart';
+import '../../core/pool.dart';
 import '../../core/manga/manga_downloader.dart';
 import '../../core/manga/manga_models.dart';
 import '../../core/manga/page_cache.dart';
+import '../../core/manga/page_fetch.dart';
 import '../../core/sources/manga_source.dart';
 import '../../core/sources/toon11/toon11_address.dart';
 import '../../core/sources/toon11/toon11_source.dart';
 import '../../core/storage/app_db.dart';
 import '../../core/storage/manga_records.dart';
 import 'manga_logic.dart';
-import 'manga_sources.dart';
 
 /// Settings key for the 11toon address (the site moves domains now and then).
 const mangaBaseUrlKey = 'manga.toon11BaseUrl';
@@ -98,25 +99,26 @@ final mangaSiteFinderProvider = Provider<MangaSiteFinder>(MangaSiteFinder.new);
 
 /// The manga site. One for now; storage keys carry the source id so more
 /// can be added later.
-final mangaSourceProvider = Provider<MangaSource>((ref) {
-  return buildMangaSource(ref.watch(dioProvider), baseUrl: ref.watch(mangaSiteAddressProvider));
-});
+final mangaSourceProvider = Provider<MangaSource>(
+    (ref) => Toon11Source(dio: ref.watch(dioProvider), baseUrl: ref.watch(mangaSiteAddressProvider)));
 
 MangaSource? mangaSourceFor(Ref ref, String sourceId) {
   final s = ref.read(mangaSourceProvider);
   return s.id == sourceId ? s : null;
 }
 
-final pageCacheProvider = Provider<PageCache>((ref) {
-  return PageCache(dio: ref.watch(dioProvider), dir: p.join(ref.watch(supportDirProvider), 'manga_cache'));
-});
+/// One fetcher for the reader and the downloader, so both skip an image host
+/// that just failed.
+final pageFetcherProvider = Provider<PageFetcher>((ref) => PageFetcher(ref.watch(dioProvider)));
+
+final pageCacheProvider = Provider<PageCache>(
+    (ref) => PageCache(fetcher: ref.watch(pageFetcherProvider), dir: p.join(ref.watch(supportDirProvider), 'manga_cache')));
 
 final mangaDownloaderProvider = Provider<MangaDownloader>((ref) {
   final d = MangaDownloader(
     db: ref.watch(dbProvider),
-    dio: ref.watch(dioProvider),
+    fetcher: ref.watch(pageFetcherProvider),
     sourceFor: (id) => mangaSourceFor(ref, id),
-    fetcher: ref.watch(pageCacheProvider).fetcher,
     customRoot: () => ref.read(settingsProvider).downloadDir,
   );
   unawaited(d.restore());
@@ -177,7 +179,7 @@ final mangaRefreshProvider = FutureProvider.family<MangaRecord, String>((ref, ke
   } catch (e) {
     if (existing != null && db.chapters(key).isNotEmpty) {
       Log.d('manga', 'refresh $key failed, using saved copy: $e');
-      throw OfflineCopy(existing, e);
+      throw OfflineCopy(e);
     }
     rethrow;
   }
@@ -185,8 +187,7 @@ final mangaRefreshProvider = FutureProvider.family<MangaRecord, String>((ref, ke
 
 /// Thrown by [mangaRefreshProvider] when the site failed but a saved copy exists.
 class OfflineCopy implements Exception {
-  OfflineCopy(this.record, this.cause);
-  final MangaRecord record;
+  OfflineCopy(this.cause);
   final Object cause;
   @override
   String toString() => 'offline: $cause';
@@ -269,12 +270,10 @@ final libraryEntriesProvider = Provider<List<LibraryEntry>>((ref) {
 
 /// Progress of "check for new chapters".
 class LibraryRefreshState {
-  const LibraryRefreshState({this.running = false, this.done = 0, this.total = 0, this.found = 0, this.failed = 0});
+  const LibraryRefreshState({this.running = false, this.done = 0, this.total = 0});
   final bool running;
   final int done;
   final int total;
-  final int found;
-  final int failed;
 }
 
 class LibraryRefresher extends Notifier<LibraryRefreshState> {
@@ -282,32 +281,23 @@ class LibraryRefresher extends Notifier<LibraryRefreshState> {
   LibraryRefreshState build() => const LibraryRefreshState();
 
   /// Refreshes every library series (3 at a time). Returns new chapters found.
-  Future<int> refreshAll({Iterable<String>? keys}) async {
+  Future<int> refreshAll() async {
     if (state.running) return 0;
     final db = ref.read(dbProvider);
-    final targets = (keys?.map(db.manga).whereType<MangaRecord>() ?? db.libraryManga()).toList();
+    final targets = db.libraryManga();
     if (targets.isEmpty) return 0;
-    var done = 0, found = 0, failed = 0;
+    var done = 0, found = 0;
     state = LibraryRefreshState(running: true, total: targets.length);
-    var next = 0;
-    Future<void> worker() async {
-      while (next < targets.length) {
-        final m = targets[next++];
-        final source = mangaSourceFor(ref, m.sourceId);
-        try {
-          if (source == null) throw StateError('no source');
-          found += (await refreshSeries(db, source, m.mangaId, cacheCover: (r) => cacheMangaCover(ref, r))).$2;
-        } catch (e) {
-          failed++;
-          Log.d('manga', 'update ${m.key}: $e');
-        }
-        done++;
-        state = LibraryRefreshState(running: true, done: done, total: targets.length, found: found, failed: failed);
+    await forEachLimited(targets, 3, (m) async {
+      try {
+        final source = mangaSourceFor(ref, m.sourceId) ?? (throw StateError('no source'));
+        found += (await refreshSeries(db, source, m.mangaId, cacheCover: (r) => cacheMangaCover(ref, r))).$2;
+      } catch (e) {
+        Log.d('manga', 'update ${m.key}: $e');
       }
-    }
-
-    await Future.wait([for (var i = 0; i < 3; i++) worker()]);
-    state = LibraryRefreshState(done: done, total: targets.length, found: found, failed: failed);
+      state = LibraryRefreshState(running: true, done: ++done, total: targets.length);
+    });
+    state = LibraryRefreshState(done: done, total: targets.length);
     return found;
   }
 }
@@ -377,7 +367,6 @@ class ListingNotifier extends Notifier<ListingState> {
 
   Future<void> loadMore() async {
     if ((state.loading && state.page > 0) || !state.hasNext) return;
-    if (state.loading && state.items.isNotEmpty) return;
     state = state.copyWith(loading: true, clearError: true);
     final source = ref.read(mangaSourceProvider);
     final page = state.page + 1;

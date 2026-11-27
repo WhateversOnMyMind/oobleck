@@ -102,7 +102,7 @@ enum LibrarySort {
   unread,
   added;
 
-  static LibrarySort parse(String? s) => values.where((v) => v.name == s).firstOrNull ?? lastRead;
+  static LibrarySort parse(String? s) => values.asNameMap()[s] ?? lastRead;
 }
 
 class LibraryFilter {

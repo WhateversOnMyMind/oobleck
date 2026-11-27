@@ -110,8 +110,6 @@ class Strings {
   String get nothingDownloaded => _('Nothing downloaded yet', '아직 다운로드한 작품이 없어요');
   String get nothingDownloadedHint => _('Download episodes from any show page and they will appear here, ready to watch offline.',
       '작품 페이지에서 에피소드를 다운로드하면 여기에 나타나요. 인터넷 없이 볼 수 있어요.');
-  String libraryLine(int shows, int eps, String bytes) =>
-      _('${showCount(shows)} · ${episodeCount(eps)} · $bytes used', '${showCount(shows)} · ${episodeCount(eps)} · $bytes 사용');
   String downloadingCount(int n) => _('Downloading · $n', '다운로드 중 · $n');
   String get waiting => _('Waiting…', '대기 중…');
   String pausedAt(int pct) => _('Paused · $pct%', '일시정지 · $pct%');
@@ -151,7 +149,6 @@ class Strings {
   String get unwatched => _('Unwatched', '안 본 에피소드');
   String get fromEpisode => _('From episode', '시작 화');
   String get toEpisode => _('To episode', '끝 화');
-  String get addToDownloads => _('Add to downloads', '다운로드에 추가');
   String get filler => _('Filler', '필러');
   String get noDub => _('No dub', '더빙 없음');
   String get downloaded => _('Downloaded', '다운로드됨');
@@ -272,7 +269,6 @@ class Strings {
   String get searchOpenSubtitles => _('Search OpenSubtitles', 'OpenSubtitles 검색');
   String downloadsCount(int n) => _('$n downloads', '다운로드 $n회');
   String get addOsKey => _('Add a free OpenSubtitles API key in Settings to search there too.', '설정에서 무료 OpenSubtitles API 키를 추가하면 거기서도 찾아요.');
-  String get koreanImported => _('Korean · imported', '한국어 · 가져옴');
 
   // ---- settings ----------------------------------------------------------------
   String get settingsTitle => _('Settings', '설정');

@@ -10,6 +10,7 @@ import 'package:oobleck/app/providers.dart';
 import 'package:oobleck/app/theme.dart';
 import 'package:oobleck/core/manga/manga_models.dart';
 import 'package:oobleck/core/manga/page_cache.dart';
+import 'package:oobleck/core/manga/page_fetch.dart';
 import 'package:oobleck/core/sources/manga_source.dart';
 import 'package:oobleck/core/storage/app_db.dart';
 import 'package:oobleck/core/storage/manga_records.dart';
@@ -60,7 +61,7 @@ class FakeMangaSource implements MangaSource {
 }
 
 class FakePageCache extends PageCache {
-  FakePageCache() : super(dio: Dio(), dir: Directory.systemTemp.path);
+  FakePageCache() : super(fetcher: PageFetcher(Dio()), dir: Directory.systemTemp.path);
   final requested = <String>[];
   @override
   Future<Uint8List> bytes(MangaPage page, {Map<String, String> headers = const {}, CancelToken? cancel}) async {

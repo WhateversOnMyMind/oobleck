@@ -3,7 +3,9 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../../app/theme.dart';
+import '../../core/storage/manga_records.dart';
 import '../../ui/hover.dart';
+import '../../ui/widgets.dart';
 
 /// Cover art: cached file first (offline), then network, then a placeholder.
 class MangaCover extends StatelessWidget {
@@ -35,6 +37,19 @@ class MangaCover extends StatelessWidget {
 
 /// A cover card for grids: cover with optional badges, title below (or on
 /// the cover in compact mode).
+/// Small rounded cover for list rows.
+class MangaThumb extends StatelessWidget {
+  const MangaThumb(this.manga, {super.key, this.headers = const {}});
+  final MangaRecord manga;
+  final Map<String, String> headers;
+
+  @override
+  Widget build(BuildContext context) => ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: SizedBox(width: 44, height: 62, child: MangaCover(url: manga.cover, localPath: manga.coverPath, headers: headers)),
+      );
+}
+
 class MangaCard extends StatelessWidget {
   const MangaCard({
     super.key,
@@ -242,5 +257,5 @@ String relativeTime(
   final diff = today.difference(day).inDays;
   if (diff <= 1) return yesterday;
   if (diff < 7) return days(diff);
-  return '${t.year}-${t.month.toString().padLeft(2, '0')}-${t.day.toString().padLeft(2, '0')}';
+  return formatDate(t);
 }

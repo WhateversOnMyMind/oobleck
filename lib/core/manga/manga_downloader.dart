@@ -6,6 +6,8 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import '../downloads/download_manager.dart';
+import '../files.dart';
+import '../pool.dart';
 import '../log.dart';
 import '../sources/manga_source.dart';
 import '../storage/app_db.dart';
@@ -19,19 +21,17 @@ import 'page_fetch.dart';
 class MangaDownloader {
   MangaDownloader({
     required this.db,
-    required this.dio,
+    required this.fetcher,
     required this.sourceFor,
     this.rootOverride,
     this.customRoot,
     this.pageConcurrency = 3,
-    PageFetcher? fetcher,
-  }) : fetcher = fetcher ?? PageFetcher(dio);
+  });
 
   /// Downloads page images, falling back to each page's mirror.
   final PageFetcher fetcher;
 
   final AppDb db;
-  final Dio dio;
   final MangaSource? Function(String sourceId) sourceFor;
   final String? rootOverride;
 
@@ -168,34 +168,27 @@ class MangaDownloader {
       final files = List<String?>.filled(pages.length, null);
       var done = 0;
       var bytes = 0;
-      var nextIndex = 0;
-      Future<void> worker() async {
-        while (!cancel.isCancelled) {
-          final i = nextIndex++;
-          if (i >= pages.length) return;
-          final page = pages[i];
-          final name = (i + 1).toString().padLeft(3, '0') + _ext(page.url);
-          final out = File(p.join(folder.path, name));
-          if (!out.existsSync() || out.lengthSync() == 0) {
-            final data = await fetcher.fetch(page, headers: source.imageHeaders, cancel: cancel);
-            // Written next to it and renamed, so a killed app never leaves half a page.
-            final part = File('${out.path}.part');
-            await part.writeAsBytes(data, flush: true);
-            await part.rename(out.path);
-          }
-          if (cancel.isCancelled) return;
-          files[i] = out.path;
-          done++;
-          bytes += out.lengthSync();
-          // Progress is written every few pages to keep the database calm.
-          if ((done % 3 == 0 || done == pages.length) && !cancel.isCancelled) {
-            rec = rec.copyWith(pagesDone: done, bytes: bytes);
-            await db.putMangaDownload(rec);
-          }
+      await forEachLimited(List.generate(pages.length, (i) => i), pageConcurrency, (i) async {
+        if (cancel.isCancelled) return;
+        final page = pages[i];
+        final out = File(p.join(folder.path, (i + 1).toString().padLeft(3, '0') + _ext(page.url)));
+        // Pages already on disk (a resumed download) are kept.
+        var size = await fileSize(out);
+        if (size == 0) {
+          final data = await fetcher.fetch(page, headers: source.imageHeaders, cancel: cancel);
+          await writeFileAtomic(out, data);
+          size = data.length;
         }
-      }
-
-      await Future.wait([for (var w = 0; w < pageConcurrency; w++) worker()]);
+        if (cancel.isCancelled) return;
+        files[i] = out.path;
+        done++;
+        bytes += size;
+        // Progress is written every few pages to keep the database calm.
+        if ((done % 3 == 0 || done == pages.length) && !cancel.isCancelled) {
+          rec = rec.copyWith(pagesDone: done, bytes: bytes);
+          await db.putMangaDownload(rec);
+        }
+      });
       if (cancel.isCancelled) return; // paused or deleted; state was written by pause/delete
       await db.putMangaDownload(rec.copyWith(
         status: MangaDownloadStatus.done,

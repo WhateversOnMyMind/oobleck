@@ -14,6 +14,7 @@ import '../../core/storage/app_db.dart';
 import '../../core/storage/manga_records.dart';
 import '../../ui/layout.dart';
 import '../../ui/widgets.dart';
+import '../../ui/feedback.dart';
 import '../reader/open_reader.dart';
 import '../reader/reader_settings.dart';
 import 'chapter_tile.dart';
@@ -76,7 +77,7 @@ class _MangaDetailScreenState extends ConsumerState<MangaDetailScreen> {
           onRefresh: () => ref.refresh(mangaRefreshProvider(key).future).then((_) {}, onError: (_) {}),
           child: CustomScrollView(
             slivers: [
-              _selecting ? _selectionBar(tr, chapters) : _appBar(tr, m, source.imageHeaders),
+              _selecting ? _selectionBar(tr, chapters) : _appBar(tr, m),
               SliverToBoxAdapter(child: _header(tr, m, chapters.length, source.imageHeaders)),
               if (offline)
                 SliverToBoxAdapter(
@@ -121,10 +122,10 @@ class _MangaDetailScreenState extends ConsumerState<MangaDetailScreen> {
                             selecting: _selecting,
                             onTap: () => _selecting ? _toggle(c.id) : openReader(context, mangaKey: key, chapterId: c.id),
                             onLongPress: () {
-                              HapticFeedback.selectionClick();
+                              hapticTick();
                               _toggle(c.id);
                             },
-                            onDownload: () => _downloadTap(tr, m, c, downloads[c.id]),
+                            onDownload: () => _downloadTap(m, c, downloads[c.id]),
                           );
                         },
                       ),
@@ -161,7 +162,7 @@ class _MangaDetailScreenState extends ConsumerState<MangaDetailScreen> {
   void _toggle(String id) => setState(() => _selected.contains(id) ? _selected.remove(id) : _selected.add(id));
 
   // ---- header --------------------------------------------------------------------------
-  Widget _appBar(Strings tr, MangaRecord m, Map<String, String> headers) {
+  Widget _appBar(Strings tr, MangaRecord m) {
     return SliverAppBar(
       pinned: true,
       title: Text(m.title, maxLines: 1, overflow: TextOverflow.ellipsis),
@@ -306,12 +307,13 @@ class _MangaDetailScreenState extends ConsumerState<MangaDetailScreen> {
 
   Widget _chapterHeader(Strings tr, MangaRecord m, int count) {
     final db = ref.read(dbProvider);
-    final filterLabel = switch (m.chapterFilter) {
-      'unread' => tr.chaptersFilterUnread,
-      'downloaded' => tr.chaptersFilterDownloaded,
-      'bookmarked' => tr.chaptersFilterBookmarked,
-      _ => tr.chaptersFilterAll,
-    };
+    final filters = [
+      ('all', tr.chaptersFilterAll),
+      ('unread', tr.chaptersFilterUnread),
+      ('downloaded', tr.chaptersFilterDownloaded),
+      ('bookmarked', tr.chaptersFilterBookmarked),
+    ];
+    final filterLabel = filters.firstWhere((f) => f.$1 == m.chapterFilter, orElse: () => filters.first).$2;
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 8, 4),
       child: Row(
@@ -323,12 +325,7 @@ class _MangaDetailScreenState extends ConsumerState<MangaDetailScreen> {
             tooltip: tr.filter,
             onSelected: (v) => db.putManga(m.copyWith(chapterFilter: v)),
             itemBuilder: (_) => [
-              for (final (v, l) in [
-                ('all', tr.chaptersFilterAll),
-                ('unread', tr.chaptersFilterUnread),
-                ('downloaded', tr.chaptersFilterDownloaded),
-                ('bookmarked', tr.chaptersFilterBookmarked),
-              ])
+              for (final (v, l) in filters)
                 CheckedPopupMenuItem(value: v, checked: m.chapterFilter == v, child: Text(l)),
             ],
             child: Padding(
@@ -442,17 +439,11 @@ class _MangaDetailScreenState extends ConsumerState<MangaDetailScreen> {
     await db.setInLibrary(m.key, adding);
     if (!mounted) return;
     unawaited(HapticFeedback.lightImpact());
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(adding ? tr.addedToLibrary(m.title) : tr.removedFromLibrary(m.title)),
-          action: SnackBarAction(label: tr.undo, onPressed: () => db.setInLibrary(m.key, !adding)),
-        ),
-      );
+    showAppSnackBar(context, adding ? tr.addedToLibrary(m.title) : tr.removedFromLibrary(m.title),
+        onUndo: () => db.setInLibrary(m.key, !adding));
   }
 
-  Future<void> _downloadTap(Strings tr, MangaRecord m, ChapterRecord c, MangaDownloadRecord? d) async {
+  Future<void> _downloadTap(MangaRecord m, ChapterRecord c, MangaDownloadRecord? d) async {
     final dl = ref.read(mangaDownloaderProvider);
     final k = ChapterState.keyOf(key, c.id);
     if (d == null || d.status == MangaDownloadStatus.failed) {
@@ -477,7 +468,7 @@ class _MangaDetailScreenState extends ConsumerState<MangaDetailScreen> {
     }.map((c) => c.toInfo(m.mangaId)).toList();
     final n = await ref.read(mangaDownloaderProvider).enqueue(m, picked);
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr.downloadQueued(n))));
+    showAppSnackBar(context, tr.downloadQueued(n));
   }
 
   Future<void> _pickSeriesMode(Strings tr, MangaRecord m) async {

@@ -171,7 +171,6 @@ void main() {
     expect(Strings.ko.episode('3'), '3화');
     expect(Strings.en.episodeCount(1), '1 episode');
     expect(Strings.en.episodeCount(2), '2 episodes');
-    expect(Strings.ko.libraryLine(2, 5, '1.2 GB'), '작품 2개 · 5화 · 1.2 GB 사용');
     expect(Strings.ko.section('Latest Episode'), '최신 에피소드');
     expect(Strings.ko.section('Something new'), 'Something new');
     expect(Strings.ko.syncError(SyncException('x', kind: SyncError.wrongPassword)), '아이디 또는 비밀번호가 틀렸어요');

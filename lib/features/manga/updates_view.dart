@@ -63,18 +63,9 @@ class UpdatesView extends ConsumerWidget {
     final db = ref.read(dbProvider);
     final groups = groupByDay(rows, (r) => r.$1.foundAt);
     final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    String dayLabel(DateTime d) {
-      final diff = today.difference(d).inDays;
-      if (diff == 0) return tr.today;
-      if (diff == 1) return tr.yesterday;
-      if (diff < 7) return tr.daysAgo(diff);
-      return '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
-    }
-
     return ListView(padding: const EdgeInsets.only(bottom: 24), children: [
       for (final (day, items) in groups) ...[
-        SectionHeader(dayLabel(day)),
+        SectionHeader(dayLabel(tr, day, now)),
         for (final (_, m, c) in items)
           Builder(builder: (context) {
             final st = db.chapterState(m.key, c.id);
@@ -82,10 +73,7 @@ class UpdatesView extends ConsumerWidget {
             return ListTile(
               leading: GestureDetector(
                 onTap: () => openMangaDetail(context, m.key),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: SizedBox(width: 44, height: 62, child: MangaCover(url: m.cover, localPath: m.coverPath, headers: headers)),
-                ),
+                child: MangaThumb(m, headers: headers),
               ),
               title: Text(m.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: read ? Colors.white38 : null)),
               subtitle: Text(c.title, style: TextStyle(color: read ? Colors.white24 : Colors.white70)),
@@ -120,7 +108,7 @@ class HistoryView extends ConsumerWidget {
     final groups = groupByDay(items, (r) => r.$2.readAt!);
     return ListView(padding: const EdgeInsets.only(bottom: 24), children: [
       for (final (day, rows) in groups) ...[
-        SectionHeader(_day(tr, day, now)),
+        SectionHeader(dayLabel(tr, day, now)),
         for (final (m, st) in rows)
           Builder(builder: (context) {
             final chapters = db.chapters(m.key);
@@ -143,10 +131,7 @@ class HistoryView extends ConsumerWidget {
               child: ListTile(
                 leading: GestureDetector(
                   onTap: () => openMangaDetail(context, m.key),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: SizedBox(width: 44, height: 62, child: MangaCover(url: m.cover, localPath: m.coverPath, headers: headers)),
-                  ),
+                  child: MangaThumb(m, headers: headers),
                 ),
                 title: Text(m.title, maxLines: 1, overflow: TextOverflow.ellipsis),
                 subtitle: Text('${chapter?.title ?? ''}$progress · $when', maxLines: 1, overflow: TextOverflow.ellipsis),
@@ -165,11 +150,13 @@ class HistoryView extends ConsumerWidget {
     ]);
   }
 
-  static String _day(Strings tr, DateTime d, DateTime now) {
-    final diff = DateTime(now.year, now.month, now.day).difference(d).inDays;
-    if (diff == 0) return tr.today;
-    if (diff == 1) return tr.yesterday;
-    if (diff < 7) return tr.daysAgo(diff);
-    return '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
-  }
+}
+
+/// "Today", "Yesterday", "3 days ago", then the date.
+String dayLabel(Strings tr, DateTime day, DateTime now) {
+  final diff = DateTime(now.year, now.month, now.day).difference(day).inDays;
+  if (diff == 0) return tr.today;
+  if (diff == 1) return tr.yesterday;
+  if (diff < 7) return tr.daysAgo(diff);
+  return formatDate(day);
 }

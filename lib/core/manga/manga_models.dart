@@ -8,7 +8,7 @@ enum MangaStatus {
   hiatus,
   unknown;
 
-  static MangaStatus parse(String? s) => MangaStatus.values.where((v) => v.name == s).firstOrNull ?? unknown;
+  static MangaStatus parse(String? s) => values.asNameMap()[s] ?? unknown;
 }
 
 /// A card in a listing or search result.

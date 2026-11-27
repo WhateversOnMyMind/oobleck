@@ -155,15 +155,14 @@ extension MangaStore on AppDb {
   }
 
   /// Removes a series from History; read marks and positions stay.
-  Future<void> removeMangaHistory(String key) {
-    final states = chapterStates(key).values.where((s) => s.readAt != null);
-    return _mangaState.putAll({for (final s in states) s.key: s.copyWith(readAt: null).toMap()});
-  }
+  Future<void> removeMangaHistory(String key) => _forgetReadAt(chapterStates(key).values);
 
-  Future<void> clearMangaHistory() {
-    final states = allChapterStates().where((s) => s.readAt != null);
-    return _mangaState.putAll({for (final s in states) s.key: s.copyWith(readAt: null).toMap()});
-  }
+  Future<void> clearMangaHistory() => _forgetReadAt(allChapterStates());
+
+  Future<void> _forgetReadAt(Iterable<ChapterState> states) => _mangaState.putAll({
+        for (final s in states)
+          if (s.readAt != null) s.key: s.copyWith(readAt: null).toMap(),
+      });
 
   // ---- updates feed -------------------------------------------------------------
   /// New chapters found by library refreshes, newest first.

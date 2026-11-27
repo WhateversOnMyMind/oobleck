@@ -286,6 +286,9 @@ void showErrorDetails(BuildContext context, Object error) {
   );
 }
 
+/// `2026-11-27`.
+String formatDate(DateTime d) => '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
 String formatDuration(Duration d) {
   final h = d.inHours;
   final m = d.inMinutes.remainder(60).toString().padLeft(2, '0');

@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 
+import '../http.dart';
 import 'image_header.dart';
 import 'manga_models.dart';
 
@@ -70,18 +71,13 @@ class PageFetcher {
           final code = e.response?.statusCode;
           // No answer at all: likely blocked or down, so try it last next time.
           if (code == null) _failedAt[_host(url)] = DateTime.now();
-          failures.add('${_host(url)}: ${code != null ? 'HTTP $code' : _cause(e)}');
+          failures.add('${_host(url)}: ${code != null ? 'HTTP $code' : describeDioError(e)}');
         } on FormatException catch (e) {
           failures.add('${_host(url)}: ${e.message}');
         }
       }
     }
     throw PageLoadException(failures);
-  }
-
-  static String _cause(DioException e) {
-    final cause = (e.error?.toString() ?? e.message ?? '').split('\n').first;
-    return cause.isEmpty ? e.type.name : '${e.type.name}: $cause';
   }
 
   Future<Uint8List> _once(String url, Map<String, String> headers, CancelToken? outer) async {

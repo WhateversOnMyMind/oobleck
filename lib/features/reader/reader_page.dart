@@ -6,10 +6,15 @@ import 'package:flutter/material.dart';
 
 import '../../app/strings.dart';
 import '../../core/manga/image_header.dart';
-import '../manga/manga_strings.dart';
+import '../../core/manga/upscale/upscaled_image.dart';
+import '../../ui/layout.dart';
 import '../../ui/widgets.dart';
-import 'page_paint.dart';
+import '../manga/manga_strings.dart';
 import 'reader_controller.dart';
+
+/// Tallest decoded page. Phones often cap GPU textures at 8192 px; desktop
+/// GPUs take 16384.
+final int maxPageTextureSide = isMobile ? 8192 : 16384;
 
 /// One page: loads the bytes, decodes them no larger than needed, and draws
 /// them (sharpened and upscaled when they are smaller than the screen).
@@ -92,9 +97,6 @@ class _ReaderPageState extends State<ReaderPage> {
     try {
       final bytes = await widget.load(widget.pageRef);
       if (!mounted || attempt != _attempt) return;
-      // Hand the decoder only real images: on some phones a file it cannot
-      // read can leave it waiting forever instead of failing.
-      if (sniffImage(bytes) == null) throw FormatException('not an image (${describeNonImage(bytes)})');
       Future<ui.FrameInfo> decode() async {
         final buffer = await ui.ImmutableBuffer.fromUint8List(bytes);
         final codec = await ui.instantiateImageCodecWithSize(buffer, getTargetSize: (w, h) {
@@ -145,7 +147,8 @@ class _ReaderPageState extends State<ReaderPage> {
   Widget build(BuildContext context) {
     final img = _image;
     if (img != null) {
-      final child = paintPage(img, fit: widget.fit, upscale: widget.upscale, sharpness: widget.sharpness);
+      // Sharpened and upscaled on the GPU when shown larger than its own size.
+      final child = UpscaledRawImage(image: img, fit: widget.fit, enabled: widget.upscale, sharpness: widget.sharpness);
       final lp = widget.onLongPress;
       if (lp == null || _bytes == null) return child;
       return GestureDetector(onLongPress: () => lp(_bytes!), child: child);

@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -7,6 +6,7 @@ import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 
 import '../../app/strings.dart';
 import '../manga/manga_strings.dart';
+import '../../ui/layout.dart';
 import 'reader_controller.dart';
 import 'reader_page.dart';
 import 'reader_settings.dart';
@@ -139,7 +139,7 @@ class _ScrollReaderState extends State<ScrollReader> {
   double _stripWidth(BoxConstraints box) {
     var w = box.maxWidth;
     // On a wide desktop window a full-width strip is uncomfortably large.
-    if (!(Platform.isAndroid || Platform.isIOS) && w > box.maxHeight && w > 960) w = 960;
+    if (!isMobile && w > box.maxHeight && w > 960) w = 960;
     return w * (1 - 2 * widget.settings.webtoonPadding.clamp(0.0, 0.3));
   }
 
@@ -187,7 +187,7 @@ class _ScrollReaderState extends State<ScrollReader> {
             maxScale: 4,
             // Pinch zoom on touch screens. On desktop the mouse wheel must scroll;
             // InteractiveViewer would zoom on every wheel notch.
-            scaleEnabled: Platform.isAndroid || Platform.isIOS,
+            scaleEnabled: isMobile,
             panEnabled: true,
             child: ScrollablePositionedList.builder(
               itemCount: _list.length,

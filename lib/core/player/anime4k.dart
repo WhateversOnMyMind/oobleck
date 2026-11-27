@@ -17,8 +17,6 @@ class Anime4K {
     ('c_hq', 'Mode C (HQ)'),
   ];
 
-  static const String defaultPreset = 'a';
-
   static String label(String id) => presets.firstWhere((e) => e.$1 == id, orElse: () => presets.first).$2;
 
   /// Ordered shader file names for a preset.

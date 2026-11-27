@@ -7,6 +7,7 @@ import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
 import 'package:path/path.dart' as p;
 
+import '../files.dart';
 import 'image_header.dart';
 import 'manga_models.dart';
 import 'page_fetch.dart';
@@ -15,11 +16,8 @@ import 'page_fetch.dart';
 /// chapter does not download it again. Oldest files are dropped once the
 /// cache grows past [maxBytes].
 class PageCache {
-  PageCache({required this.dio, required this.dir, this.maxBytes = 800 * 1024 * 1024}) : fetcher = PageFetcher(dio);
+  PageCache({required this.fetcher, required this.dir, this.maxBytes = 800 * 1024 * 1024});
 
-  final Dio dio;
-
-  /// Shared with the downloader, so both skip an image host that just failed.
   final PageFetcher fetcher;
   final String dir;
   int maxBytes;
@@ -67,9 +65,7 @@ class PageCache {
   Future<void> _store(File file, Uint8List data) async {
     try {
       file.parent.createSync(recursive: true);
-      final tmp = File('${file.path}.part');
-      await tmp.writeAsBytes(data, flush: true);
-      await tmp.rename(file.path);
+      await writeFileAtomic(file, data);
     } catch (_) {
       return; // caching is best effort
     }

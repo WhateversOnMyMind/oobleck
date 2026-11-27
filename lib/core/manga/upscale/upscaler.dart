@@ -93,14 +93,6 @@ class Upscaler {
     }
   }
 
-  /// Forgets the loaded instance so that tests can load again.
-  @visibleForTesting
-  static void debugReset() {
-    _loaded?.clearCache();
-    _loaded = null;
-    _instance = null;
-  }
-
   final ui.FragmentShader _upscale;
   final ui.FragmentShader _sharpen;
   final LruByteCache<_BandKey, ui.Image> _cache;

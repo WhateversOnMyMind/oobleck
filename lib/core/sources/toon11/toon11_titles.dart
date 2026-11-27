@@ -4,9 +4,14 @@
 // Older chapters often use a shorter spelling of the series name
 // ("원피스 1화"). Observed 2026-11-27.
 
-String _clean(String s) => s.replaceAll(RegExp(r'[\s ]+'), ' ').trim();
+import 'toon11_parsers.dart';
 
 final _letter = RegExp(r'^[A-Za-z぀-ヿ一-鿿가-힣]');
+
+final _chapterNo = RegExp(r'(\d+(?:\.\d+)?)(?:-(\d+))?\s*[화회]');
+final _volumeNo = RegExp(r'(\d+(?:\.\d+)?)(?:-(\d+))?\s*권');
+final _bareNo = RegExp(r'(?:^|\s)#?(\d+(?:\.\d+)?)$');
+final _leadingDash = RegExp(r'^[-–:·]\s+');
 
 /// "232화", "10.5권", "38-2화", "3회".
 final _numbered = RegExp(r'\d+(?:[.\-]\d+)*\s*[화권회]');
@@ -14,15 +19,15 @@ final _numbered = RegExp(r'\d+(?:[.\-]\d+)*\s*[화권회]');
 /// Chapter label without the series name: "1199화", "외전 3화", "1부 에필로그".
 /// Falls back to the full text when the name cannot be told apart.
 String toon11ChapterLabel(String raw, String seriesTitle) {
-  final text = _clean(raw);
-  final series = _clean(seriesTitle);
+  final text = toon11Clean(raw);
+  final series = toon11Clean(seriesTitle);
   if (text.isEmpty || series.isEmpty) return text;
   final rest = (_stripFull(text, series) ??
           _stripTruncated(text, series) ??
           _stripSharedPrefix(text, series) ??
           _numberedTail(text) ??
           text)
-      .replaceFirst(RegExp(r'^[-–:·]\s+'), '')
+      .replaceFirst(_leadingDash, '')
       .trim();
   return rest.isEmpty ? text : rest;
 }
@@ -77,9 +82,9 @@ String? _numberedTail(String text) {
 /// "제 3화" -> 3, "38-2화" -> 38.2, "299-300화" -> 299, "3권" -> 3, "36" -> 36.
 /// Null when the label has no number ("특별편", "1부 에필로그").
 double? toon11ChapterNumber(String label) {
-  final m = RegExp(r'(\d+(?:\.\d+)?)(?:-(\d+))?\s*[화회]').firstMatch(label) ??
-      RegExp(r'(\d+(?:\.\d+)?)(?:-(\d+))?\s*권').firstMatch(label) ??
-      RegExp(r'(?:^|\s)#?(\d+(?:\.\d+)?)$').firstMatch(label);
+  final m = _chapterNo.firstMatch(label) ??
+      _volumeNo.firstMatch(label) ??
+      _bareNo.firstMatch(label);
   if (m == null) return null;
   final whole = m.group(1)!;
   final part = m.groupCount >= 2 ? m.group(2) : null;

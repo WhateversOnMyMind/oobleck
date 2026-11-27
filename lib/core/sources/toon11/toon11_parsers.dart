@@ -18,8 +18,17 @@ String toon11CoverUrl(String id) => 'https://11toon8.com/data/toon_category/$id.
 /// style links. Every page that links relatively lives under `/bbs/`.
 String toon11Abs(String url, String base) => Uri.parse('$base/bbs/').resolve(url.trim()).toString();
 
-String _clean(String? s) => (s ?? '').replaceAll(RegExp(r'[\s ]+'), ' ').trim();
+final _spaces = RegExp(r'[\s ]+');
 
+/// [s] with runs of white space (non-breaking spaces too) made single spaces.
+String toon11Clean(String? s) => (s ?? '').replaceAll(_spaces, ' ').trim();
+
+final _viewCount = RegExp(r'\s*\(\d+\)$');
+final _timeOfDay = RegExp(r'\s\d{2}:\d{2}:\d{2}$');
+final _adultTag = RegExp(r'(^|[,\s])17($|[,\s])');
+final _digits = RegExp(r'\d+');
+final _shortDate = RegExp(r'(\d{2})\.(\d{1,2})\.(\d{1,2})');
+final _wrId = RegExp(r'wr_id=(\d+)');
 final _cssUrl = RegExp(r'''url\(\s*['"]?([^'")]+)['"]?\s*\)''');
 
 String? _background(Element? e, String base) {
@@ -35,7 +44,7 @@ String _textWithoutCounter(Element? e) {
   for (final f in copy.querySelectorAll('font')) {
     f.remove();
   }
-  return _clean(copy.text);
+  return toon11Clean(copy.text);
 }
 
 /// Cards of a listing or search page, in page order.
@@ -50,16 +59,16 @@ List<MangaSummary> parseToon11Cards(String body, String base, {int rankOffset = 
   final out = <MangaSummary>[];
   final seen = <String>{};
   for (final li in html.parse(body).querySelectorAll('ul.homelist li[data-id]')) {
-    final id = _clean(li.attributes['data-id']);
-    var title = _clean(li.querySelector('.homelist-title span')?.text);
-    if (title.isEmpty) title = _clean(li.attributes['data-title']);
+    final id = toon11Clean(li.attributes['data-id']);
+    var title = toon11Clean(li.querySelector('.homelist-title span')?.text);
+    if (title.isEmpty) title = toon11Clean(li.attributes['data-title']);
     if (id.isEmpty || title.isEmpty || !seen.add(id)) continue;
 
     var info = _textWithoutCounter(li.querySelector('.homelist-genre'))
-        .replaceFirst(RegExp(r'\s*\(\d+\)$'), '') // view count on ranked lists
-        .replaceFirst(RegExp(r'\s\d{2}:\d{2}:\d{2}$'), ''); // time of day on search results
-    final adult = RegExp(r'(^|[,\s])17($|[,\s])').hasMatch(info);
-    final rank = int.tryParse(RegExp(r'\d+').firstMatch(li.querySelector('.homelist-ranking')?.text ?? '')?.group(0) ?? '');
+        .replaceFirst(_viewCount, '') // view count on ranked lists
+        .replaceFirst(_timeOfDay, ''); // time of day on search results
+    final adult = _adultTag.hasMatch(info);
+    final rank = int.tryParse(_digits.firstMatch(li.querySelector('.homelist-ranking')?.text ?? '')?.group(0) ?? '');
     if (rank != null) info = info.isEmpty ? '${rank + rankOffset}위' : '${rank + rankOffset}위 · $info';
 
     out.add(MangaSummary(
@@ -81,7 +90,7 @@ int parseToon11LastPage(String body) {
   var last = 1;
   final nav = html.parse(body).querySelector('nav.pg_wrap');
   if (nav == null) return last;
-  final current = int.tryParse(_clean(nav.querySelector('.pg_current')?.text));
+  final current = int.tryParse(toon11Clean(nav.querySelector('.pg_current')?.text));
   if (current != null && current > last) last = current;
   for (final a in nav.querySelectorAll('a.pg_page')) {
     final n = int.tryParse(RegExp(r'[?&]page=(\d+)').firstMatch(a.attributes['href'] ?? '')?.group(1) ?? '');
@@ -104,15 +113,15 @@ List<MangaSummary> parseToon11AuthorSearch(String body) {
   if (list is! List) return const [];
   final out = <MangaSummary>[];
   for (final e in list.whereType<Map<dynamic, dynamic>>()) {
-    final id = _clean(e['wr_id']?.toString());
-    final title = _clean(e['wr_subject']?.toString());
+    final id = toon11Clean(e['wr_id']?.toString());
+    final title = toon11Clean(e['wr_subject']?.toString());
     if (id.isEmpty || title.isEmpty) continue;
-    final genres = _clean(e['ca_name']?.toString());
+    final genres = toon11Clean(e['ca_name']?.toString());
     out.add(MangaSummary(
       id: id,
       title: title,
       cover: toon11CoverUrl(id),
-      subtitle: _clean(e['wr_6']?.toString()),
+      subtitle: toon11Clean(e['wr_6']?.toString()),
       adult: genres.split(',').map((g) => g.trim()).contains('17'),
     ));
   }
@@ -135,13 +144,13 @@ MangaStatus toon11Status(String schedule) {
 /// all of these empty.
 MangaDetail parseToon11Detail(String body, String id, String base) {
   final doc = html.parse(body);
-  final title = _clean(doc.querySelector('h2.title')?.text);
+  final title = toon11Clean(doc.querySelector('h2.title')?.text);
   if (title.isEmpty) throw SourceException('11toon: series $id not found');
 
   final info = <String, String>{};
   for (final label in doc.querySelectorAll('span.genre-subtitle')) {
-    final key = _clean(label.text).replaceAll(':', '').trim();
-    info[key] = _clean(label.nextElementSibling?.text);
+    final key = toon11Clean(label.text).replaceAll(':', '').trim();
+    info[key] = toon11Clean(label.nextElementSibling?.text);
   }
   final cover = doc.querySelector('img.banner')?.attributes['src'];
   final schedule = info['분류'] ?? '';
@@ -160,7 +169,7 @@ MangaDetail parseToon11Detail(String body, String id, String base) {
 
 /// `.free-date` is `yy.MM.dd` ("26.11.23").
 DateTime? parseToon11Date(String s) {
-  final m = RegExp(r'(\d{2})\.(\d{1,2})\.(\d{1,2})').firstMatch(s);
+  final m = _shortDate.firstMatch(s);
   if (m == null) return null;
   final month = int.parse(m.group(2)!), day = int.parse(m.group(3)!);
   if (month < 1 || month > 12 || day < 1 || day > 31) return null;
@@ -176,7 +185,7 @@ DateTime? parseToon11Date(String s) {
 List<ChapterInfo> parseToon11Chapters(String body, String mangaId, String seriesTitle, String base) {
   final out = <ChapterInfo>[];
   for (final b in html.parse(body).querySelectorAll('#comic-episode-list button.episode')) {
-    final id = RegExp(r'wr_id=(\d+)').firstMatch(b.attributes['onclick'] ?? '')?.group(1);
+    final id = _wrId.firstMatch(b.attributes['onclick'] ?? '')?.group(1);
     if (id == null) continue;
     final label = toon11ChapterLabel(b.querySelector('.episode-title')?.text ?? '', seriesTitle);
     out.add(ChapterInfo(
@@ -186,7 +195,7 @@ List<ChapterInfo> parseToon11Chapters(String body, String mangaId, String series
       number: toon11ChapterNumber(label),
       uploaded: parseToon11Date(_textWithoutCounter(b.querySelector('.free-date'))),
       thumbnail: _background(b.querySelector('.episode-banner'), base),
-      views: int.tryParse(_clean(b.querySelector('.list_hit')?.text).replaceAll(',', '')),
+      views: int.tryParse(toon11Clean(b.querySelector('.list_hit')?.text).replaceAll(',', '')),
     ));
   }
   return out;

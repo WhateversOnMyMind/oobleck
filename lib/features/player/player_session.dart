@@ -17,6 +17,7 @@ import '../../core/storage/app_db.dart';
 import '../../core/subtitles/korean_lookup.dart';
 import '../../core/subtitles/subtitle_import.dart';
 import '../../core/storage/records.dart';
+import '../../ui/layout.dart';
 import 'play_request.dart';
 import 'resume_seek.dart';
 import 'video_fit.dart';
@@ -47,7 +48,7 @@ class PlayerSession extends ChangeNotifier {
       configuration: PlayerConfiguration(
         title: 'Oobleck',
         // Phones draw subtitles in Flutter (system fonts cover CJK).
-        libass: !(Platform.isAndroid || Platform.isIOS),
+        libass: !isMobile,
         bufferSize: 64 * 1024 * 1024,
         // Warnings include shader compile errors (Anime4K), which mpv otherwise drops silently.
         logLevel: MPVLogLevel.warn,
@@ -125,7 +126,6 @@ class PlayerSession extends ChangeNotifier {
   String? nextEpisode;
   String anime4kPreset = 'off';
   double speed = 1.0;
-  bool hasSavedSettingsNote = false;
 
   /// All subtitle tracks selectable for the current episode.
   List<SubtitleTrackInfo> get allSubtitleTracks => subtitleTracks;
