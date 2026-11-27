@@ -138,7 +138,7 @@ List<LibraryEntry> arrangeLibrary(
   int cmp(LibraryEntry a, LibraryEntry b) => switch (sort) {
         LibrarySort.lastRead => a.lastReadAt.compareTo(b.lastReadAt),
         LibrarySort.lastUpdate => a.latestChapterAt.compareTo(b.latestChapterAt),
-        LibrarySort.title => b.manga.title.toLowerCase().compareTo(a.manga.title.toLowerCase()),
+        LibrarySort.title => a.manga.title.toLowerCase().compareTo(b.manga.title.toLowerCase()),
         LibrarySort.unread => a.unread.compareTo(b.unread),
         LibrarySort.added => a.manga.addedAt.compareTo(b.manga.addedAt),
       };
