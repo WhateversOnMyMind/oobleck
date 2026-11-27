@@ -17,6 +17,14 @@ Dio buildDio({HttpClientAdapter? adapter, Map<String, String>? headers}) {
   return dio;
 }
 
+/// The cause of a failed request on one line, e.g. "connectionError: Connection
+/// reset by peer". A network that blocks a site fails differently from one
+/// that is offline, so the cause is worth keeping.
+String describeDioError(DioException e) {
+  final cause = (e.error?.toString() ?? e.message ?? '').split('\n').first;
+  return cause.isEmpty ? e.type.name : '${e.type.name}: $cause';
+}
+
 /// Retries transient failures with exponential backoff.
 Future<T> withRetry<T>(Future<T> Function() fn,
     {int attempts = 3, Duration base = const Duration(milliseconds: 400)}) async {

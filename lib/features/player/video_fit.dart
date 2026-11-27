@@ -14,7 +14,7 @@ enum VideoFit {
 
   VideoFit get next => values[(index + 1) % values.length];
 
-  static VideoFit parse(String? name) => values.firstWhere((v) => v.name == name, orElse: () => fit);
+  static VideoFit parse(String? name) => values.asNameMap()[name] ?? fit;
 }
 
 /// Text scale for subtitles drawn by Flutter (Android).

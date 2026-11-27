@@ -70,8 +70,6 @@ class EpisodeInfo {
   final bool isFiller;
 
   double get numeric => double.tryParse(number) ?? 0;
-
-  String get displayTitle => title.isEmpty ? 'Episode $number' : title;
 }
 
 class ServerOption {

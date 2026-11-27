@@ -13,6 +13,7 @@ import '../../core/storage/records.dart';
 import '../../core/subtitles/subtitle_import.dart';
 import '../subtitles/korean_sheet.dart';
 import '../sync/sync_controller.dart';
+import '../../ui/layout.dart';
 import 'play_request.dart';
 import 'player_controls.dart';
 import 'player_session.dart';
@@ -29,7 +30,7 @@ class PlayerScreen extends ConsumerStatefulWidget {
 class _PlayerScreenState extends ConsumerState<PlayerScreen> with WidgetsBindingObserver {
   late final PlayerSession session;
   late final SyncController _sync;
-  bool get _mobile => Platform.isAndroid || Platform.isIOS;
+  bool get _mobile => isMobile;
 
   @override
   void initState() {

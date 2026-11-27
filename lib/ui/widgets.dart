@@ -1,9 +1,11 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../app/strings.dart';
 import '../app/theme.dart';
+import 'hover.dart';
 
 /// Animated placeholder block used instead of spinners.
 class Skeleton extends StatefulWidget {
@@ -111,7 +113,7 @@ class PosterCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
     final card = InkWell(
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(Radii.card),
       onTap: onTap,
       onLongPress: onLongPress,
       child: Column(
@@ -119,31 +121,48 @@ class PosterCard extends StatelessWidget {
         children: [
           AspectRatio(
             aspectRatio: 2 / 3,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(14),
-              child: Stack(fit: StackFit.expand, children: [
-                PosterImage(url: url, localPath: localPath),
-                if (badge != null)
-                  Positioned(
-                    top: 8,
-                    left: 8,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.7), borderRadius: BorderRadius.circular(8)),
-                      child: Text(badge!, style: t.labelSmall?.copyWith(fontWeight: FontWeight.w600)),
-                    ),
+            // Mouse hover lifts the cover with an accent ring; the full title
+            // shows as a tooltip because long titles are cut to two lines.
+            child: HoverBuilder(
+              builder: (context, hovered) => Tooltip(
+                message: title,
+                triggerMode: TooltipTriggerMode.manual,
+                waitDuration: const Duration(milliseconds: 700),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 120),
+                  foregroundDecoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(Radii.card),
+                    color: hovered ? Colors.white.withValues(alpha: 0.06) : Colors.transparent,
+                    border: Border.all(color: hovered ? kAccent : Colors.transparent, width: 2),
                   ),
-                if (progress != null)
-                  Positioned(
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    child: LinearProgressIndicator(value: progress, minHeight: 4, backgroundColor: Colors.black54),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(Radii.card),
+                    child: Stack(fit: StackFit.expand, children: [
+                      PosterImage(url: url, localPath: localPath),
+                      if (badge != null)
+                        Positioned(
+                          top: 8,
+                          left: 8,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.7), borderRadius: BorderRadius.circular(8)),
+                            child: Text(badge!, style: t.labelSmall?.copyWith(fontWeight: FontWeight.w600)),
+                          ),
+                        ),
+                      if (progress != null)
+                        Positioned(
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                          child: LinearProgressIndicator(value: progress, minHeight: 4, backgroundColor: Colors.black54),
+                        ),
+                    ]),
                   ),
-              ]),
+                ),
+              ),
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: Gap.s),
           Text(title, maxLines: 2, overflow: TextOverflow.ellipsis, style: t.bodyMedium?.copyWith(fontWeight: FontWeight.w600, height: 1.2)),
           if (subtitle != null)
             Padding(
@@ -210,7 +229,8 @@ class EmptyState extends StatelessWidget {
   }
 }
 
-/// Friendly error with a retry button. Never shows raw URLs or stack traces.
+/// Friendly error with a retry button. The technical message is one tap away
+/// under Details (for reporting a problem); no stack traces.
 class ErrorState extends StatelessWidget {
   const ErrorState({super.key, required this.error, this.onRetry});
   final Object error;
@@ -218,6 +238,7 @@ class ErrorState extends StatelessWidget {
 
   static String friendly(Object e, [Strings s = Strings.en]) {
     final m = e.toString().toLowerCase();
+    if (m.contains('cannot reach') || m.contains('handshake') || m.contains('certificate')) return s.errUnreachable;
     if (m.contains('socket') || m.contains('connection') || m.contains('timeout') || m.contains('host lookup')) {
       return s.errNetwork;
     }
@@ -230,15 +251,43 @@ class ErrorState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final s = Strings.of(context);
-    return EmptyState(
-      icon: Icons.cloud_off_rounded,
-      title: s.couldntLoad,
-      message: friendly(error, s),
-      actionLabel: s.retry,
-      onAction: onRetry,
-    );
+    return Column(mainAxisSize: MainAxisSize.min, mainAxisAlignment: MainAxisAlignment.center, children: [
+      Flexible(
+        child: EmptyState(
+          icon: Icons.cloud_off_rounded,
+          title: s.couldntLoad,
+          message: friendly(error, s),
+          actionLabel: s.retry,
+          onAction: onRetry,
+        ),
+      ),
+      TextButton(onPressed: () => showErrorDetails(context, error), child: Text(s.details)),
+    ]);
   }
 }
+
+/// The technical message behind an error, selectable and copyable.
+void showErrorDetails(BuildContext context, Object error) {
+  final s = Strings.of(context);
+  final text = error.toString();
+  showDialog<void>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: Text(s.details),
+      content: SelectableText(text.length > 800 ? '${text.substring(0, 800)}…' : text),
+      actions: [
+        TextButton(
+          onPressed: () => Clipboard.setData(ClipboardData(text: text)),
+          child: Text(s.copy),
+        ),
+        FilledButton(onPressed: () => Navigator.pop(ctx), child: Text(s.close)),
+      ],
+    ),
+  );
+}
+
+/// `2026-11-27`.
+String formatDate(DateTime d) => '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
 String formatDuration(Duration d) {
   final h = d.inHours;

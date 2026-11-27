@@ -17,6 +17,7 @@ import '../../core/storage/app_db.dart';
 import '../../core/subtitles/korean_lookup.dart';
 import '../../core/subtitles/subtitle_import.dart';
 import '../../core/storage/records.dart';
+import '../../ui/layout.dart';
 import 'play_request.dart';
 import 'resume_seek.dart';
 import 'video_fit.dart';
@@ -47,7 +48,7 @@ class PlayerSession extends ChangeNotifier {
       configuration: PlayerConfiguration(
         title: 'Oobleck',
         // Phones draw subtitles in Flutter (system fonts cover CJK).
-        libass: !(Platform.isAndroid || Platform.isIOS),
+        libass: !isMobile,
         bufferSize: 64 * 1024 * 1024,
         // Warnings include shader compile errors (Anime4K), which mpv otherwise drops silently.
         logLevel: MPVLogLevel.warn,
@@ -125,7 +126,6 @@ class PlayerSession extends ChangeNotifier {
   String? nextEpisode;
   String anime4kPreset = 'off';
   double speed = 1.0;
-  bool hasSavedSettingsNote = false;
 
   /// All subtitle tracks selectable for the current episode.
   List<SubtitleTrackInfo> get allSubtitleTracks => subtitleTracks;
@@ -326,6 +326,7 @@ class PlayerSession extends ChangeNotifier {
     unawaited(_applyOffset());
     unawaited(_autoKorean(_loadId));
     unawaited(applyAnime4K(settings().anime4k));
+    boosted = false;
     unawaited(player.setRate(speed));
     if (startAt > const Duration(seconds: 5)) {
       // The toast appears only once the position is really there.
@@ -728,7 +729,18 @@ class PlayerSession extends ChangeNotifier {
   // ---- misc ------------------------------------------------------------------------------------
   Future<void> setSpeed(double v) async {
     speed = v;
-    await player.setRate(v);
+    if (!boosted) await player.setRate(v);
+    notifyListeners();
+  }
+
+  /// Plays at [boostRate] while a press is held, without changing [speed].
+  bool boosted = false;
+  static const boostRate = 2.0;
+
+  void setBoost(bool on) {
+    if (boosted == on) return;
+    boosted = on;
+    unawaited(player.setRate(on ? boostRate : speed));
     notifyListeners();
   }
 

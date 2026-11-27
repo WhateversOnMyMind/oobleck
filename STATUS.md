@@ -88,7 +88,59 @@ in two attempts). The same tests pass locally with libmpv 0.37 + ffmpeg. The job
 - OpenSubtitles with a real API key (the account-login requirement for downloads is unconfirmed)
 - Windows fullscreen toggling, and the custom controls' layout/gestures (no UI test drives them yet)
 
+## Manga reader and comfort pass (branch `manga-reader`)
+- **Manga tab** (11toon, checked live 2026-11-27): Library (categories, sort, filters, grid/compact/list, multi-select),
+  Updates (new chapters of library series, grouped by day), History (swipe to remove, resume), Browse (latest, popular,
+  completed, daily picks, 31 genres with multi-select, title and author search)
+- **Series page**: add to library with Undo, chapter sort/filter, multi-select (read/unread, bookmark, mark previous read,
+  download/delete), per-series reading mode, categories, open in browser, Continue / Start reading button
+- **Reader**: webtoon long strip that flows into the next chapter, vertical with gaps, left-to-right, right-to-left;
+  Automatic picks strip or pages from the first image. Tap zones (5 layouts, invert), pinch and double-tap zoom, page
+  slider, keyboard and volume keys, swipe past the end card for the next chapter, dimming, grayscale, keep screen on,
+  fullscreen, incognito, save page as image. Position saved per chapter
+- **Site address**: when 11toon does not answer (moved, or blocked on this network), the app looks up the current
+  address on Namuwiki's 일일툰 article, checks it and switches to it. Settings > Manga reader shows the address in use
+  and has "Find current address"; an address typed there is never replaced automatically. Live check:
+  `OOBLECK_LIVE=1 flutter test test/toon11_live_test.dart` (add `OOBLECK_TOON11=http://host:port` to test another address)
+- **Error screens** have a Details button with the technical message (DNS, reset, certificate, HTTP code)
+- **Page images**: each page and its mirror get one quick try in turn (12 s without data counts as failed), and a
+  host that just failed goes last for the next pages, so a blocked image host costs seconds once instead of minutes
+  per page. The reader opens after at most 6 s even if the first image is slow; failed pages show Retry and Details.
+  Page sizes for the automatic layout are read from the file header (JPEG/PNG/GIF/WebP), so opening a chapter no
+  longer goes through the image decoder. Anything that is not an image (an error page served as 200) is rejected
+  before decoding, and a page that takes over 20 s to decode shows an error.
+  Tests: `test/page_fetch_test.dart`, `test/image_header_test.dart`
+- **Online chapters stuck loading (fixed)**: the page cache never returned a downloaded page, because its
+  clean-up callback returned the request itself and the request waited on itself. Downloaded chapters were not
+  affected. Reproduced on an Android 15 emulator and on desktop; regression test in `test/page_cache_test.dart`
+- **Brightness, much darker than the phone allows**: the player's left-side swipe and a Brightness slider in the
+  reader's settings (phones) go past the backlight minimum: the backlight stays at its lowest and a black layer takes
+  over, down to 1 % (a tenth of the picture still shows, never black). The reader's setting is remembered, "Use
+  phone's" hands brightness back, and leaving the reader restores the phone's own. Checked on an Android 15 emulator;
+  tests in `test/dimming_test.dart`
+- **Downloads**: queue with pause/resume, resumes at launch, offline reading, "delete read chapters"
+- **Upscaling**: GPU FSR 1.0 based upscale + sharpen, on by default, strength in reader settings
+- **Comfort pass (whole app)**: Esc / mouse back closes pages; hover rings and full-title tooltips on cards; right click
+  works like long press; Home rows drag with the mouse and keep their position; Search keeps its query, has recent
+  searches and `/` or Ctrl+F; show page with sticky Play bar on phones, sort and jump to episode, range selection
+  (long press then long press, or Shift+click), watched marks with Undo; Downloaded sort and storage summary; Settings
+  hints; player screen lock on phones and 48 dp bar buttons; destructive confirms are red and never confirmed by Enter
+- Fixed in review before merge: chapter read marks and new chapters not refreshing on screen, the reader throwing on exit
+  (wake lock and fullscreen stayed on), mouse wheel zooming the strip on Windows, a failed next chapter cascading
+  through the rest, downloads not resuming after restart, pause/delete during a download being overwritten,
+  half-written pages after a crash, stale Browse pages after a reload
+- **Not yet tried on a device**: the reader and upscaler on a real GPU (Android GLES could show the upscaled page
+  upside down; turning upscaling off is the workaround), the phone player lock. Unit and widget tests cover the
+  logic, storage, 11toon parsing (fixtures + live test) and the main screens
+
 ## How to test each feature
+- Manga: Manga tab > Browse, open a series, tap the heart (Library), tap Start reading. In the reader tap the
+  middle for the menu (mode, upscale, settings), the edges to turn pages. Long strips continue into the next
+  chapter. Library > refresh checks every saved series; new chapters appear in Updates
+- Manga offline: series screen > download icon (next 5 / unread / all) or a chapter's download button; Manga >
+  download icon shows the queue. Pages are saved under Pictures/Oobleck Manga
+- Upscaling: reader menu > Sharpen and upscale (on by default). Visible on small-resolution pages shown on a big screen
+- 11toon live check: `OOBLECK_LIVE=1 flutter test test/toon11_live_test.dart`
 - Library: download an episode from a show page (download icon), open the Downloaded tab, tap the poster, tap the episode, turn Wi-Fi off
 - Double tap (phone): left side goes back 10 s, right side forward 10 s, middle pauses
 - Resume: watch a minute, back out, reopen: toast "Resumed at …"; Home shows it under Continue watching

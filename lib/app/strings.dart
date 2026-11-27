@@ -25,6 +25,10 @@ class Strings {
 
   String _(String english, String korean) => isKorean ? korean : english;
 
+  /// For feature files that keep their own strings in an extension on
+  /// [Strings] (e.g. `features/manga/manga_strings.dart`).
+  String pick(String english, String korean) => _(english, korean);
+
   // ---- common ----------------------------------------------------------------
   String get cancel => _('Cancel', '취소');
   String get delete => _('Delete', '삭제');
@@ -66,6 +70,12 @@ class Strings {
   String get couldntLoad => _("Couldn't load", '불러오지 못했어요');
   String get errNetwork => _('Check your internet connection and try again.', '인터넷 연결을 확인하고 다시 시도해 주세요.');
   String get errRefused => _('The site refused the request. Try again in a moment.', '사이트가 요청을 거부했어요. 잠시 후 다시 시도해 주세요.');
+  String get errUnreachable => _(
+      "Couldn't reach the site. It may be blocked on this network (try Wi-Fi or another network), or it may have moved to a new address.",
+      '사이트에 연결하지 못했어요. 이 네트워크에서 막혀 있을 수 있어요(와이파이나 다른 네트워크로 시도해 보세요). 사이트 주소가 바뀌었을 수도 있어요.');
+  String get details => _('Details', '자세히');
+  String get copy => _('Copy', '복사');
+  String get close => _('Close', '닫기');
   String get errGeneric => _('Something went wrong while loading this. Try again.', '불러오는 중 문제가 생겼어요. 다시 시도해 주세요.');
 
   // ---- home --------------------------------------------------------------------
@@ -100,8 +110,6 @@ class Strings {
   String get nothingDownloaded => _('Nothing downloaded yet', '아직 다운로드한 작품이 없어요');
   String get nothingDownloadedHint => _('Download episodes from any show page and they will appear here, ready to watch offline.',
       '작품 페이지에서 에피소드를 다운로드하면 여기에 나타나요. 인터넷 없이 볼 수 있어요.');
-  String libraryLine(int shows, int eps, String bytes) =>
-      _('${showCount(shows)} · ${episodeCount(eps)} · $bytes used', '${showCount(shows)} · ${episodeCount(eps)} · $bytes 사용');
   String downloadingCount(int n) => _('Downloading · $n', '다운로드 중 · $n');
   String get waiting => _('Waiting…', '대기 중…');
   String pausedAt(int pct) => _('Paused · $pct%', '일시정지 · $pct%');
@@ -141,7 +149,6 @@ class Strings {
   String get unwatched => _('Unwatched', '안 본 에피소드');
   String get fromEpisode => _('From episode', '시작 화');
   String get toEpisode => _('To episode', '끝 화');
-  String get addToDownloads => _('Add to downloads', '다운로드에 추가');
   String get filler => _('Filler', '필러');
   String get noDub => _('No dub', '더빙 없음');
   String get downloaded => _('Downloaded', '다운로드됨');
@@ -262,7 +269,6 @@ class Strings {
   String get searchOpenSubtitles => _('Search OpenSubtitles', 'OpenSubtitles 검색');
   String downloadsCount(int n) => _('$n downloads', '다운로드 $n회');
   String get addOsKey => _('Add a free OpenSubtitles API key in Settings to search there too.', '설정에서 무료 OpenSubtitles API 키를 추가하면 거기서도 찾아요.');
-  String get koreanImported => _('Korean · imported', '한국어 · 가져옴');
 
   // ---- settings ----------------------------------------------------------------
   String get settingsTitle => _('Settings', '설정');

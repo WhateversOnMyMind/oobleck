@@ -10,7 +10,7 @@ TapZone zoneAt(double x, double width) {
 }
 
 /// The player's touch layer: tap shows/hides the controls, double tap skips
-/// by side.
+/// by side, holding the right half plays fast until released.
 ///
 /// The side comes from the double tap's own position (`onDoubleTapDown`).
 /// It used to come from `onTapDown`, which belongs to the single-tap
@@ -22,12 +22,16 @@ class TapZones extends StatefulWidget {
     super.key,
     required this.onTap,
     required this.onDoubleTap,
+    this.onHoldRight,
     this.onVerticalDragStart,
     this.onVerticalDragUpdate,
   });
 
   final VoidCallback onTap;
   final ValueChanged<TapZone> onDoubleTap;
+
+  /// True when a press on the right half is held, false when it ends.
+  final ValueChanged<bool>? onHoldRight;
   final GestureDragStartCallback? onVerticalDragStart;
   final GestureDragUpdateCallback? onVerticalDragUpdate;
 
@@ -46,6 +50,11 @@ class _TapZonesState extends State<TapZones> {
         onTap: widget.onTap,
         onDoubleTapDown: (d) => _zone = zoneAt(d.localPosition.dx, box.maxWidth),
         onDoubleTap: () => widget.onDoubleTap(_zone),
+        onLongPressStart: (d) {
+          if (d.localPosition.dx > box.maxWidth / 2) widget.onHoldRight?.call(true);
+        },
+        onLongPressEnd: (_) => widget.onHoldRight?.call(false),
+        onLongPressCancel: () => widget.onHoldRight?.call(false),
         onVerticalDragStart: widget.onVerticalDragStart,
         onVerticalDragUpdate: widget.onVerticalDragUpdate,
         child: const SizedBox.expand(),

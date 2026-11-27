@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../app/strings.dart';
 import '../../app/theme.dart';
 import '../../core/sync/sync_api.dart';
+import '../../ui/widgets.dart';
 import 'sync_controller.dart';
 
 /// Settings tiles for watch-history sync.
@@ -91,7 +92,7 @@ String syncedAgo(DateTime? t, DateTime now, [Strings tr = Strings.en]) {
   if (d.inMinutes < 1) return tr.syncedJustNow;
   if (d.inMinutes < 60) return tr.syncedMinAgo(d.inMinutes);
   if (d.inHours < 24) return tr.syncedHoursAgo(d.inHours);
-  return tr.syncedOn('${t.year}-${t.month.toString().padLeft(2, '0')}-${t.day.toString().padLeft(2, '0')}');
+  return tr.syncedOn(formatDate(t));
 }
 
 final _userPattern = RegExp(r'^[a-z0-9_.-]{3,32}$');

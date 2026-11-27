@@ -1,18 +1,20 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:media_kit_video/media_kit_video.dart';
-import 'package:screen_brightness/screen_brightness.dart';
 
 import '../../app/providers.dart';
 import '../../app/strings.dart';
+import '../../app/strings_ui.dart';
 import '../../app/theme.dart';
 import '../../core/models.dart';
 import '../../core/player/anime4k.dart';
+import '../../ui/dimming.dart';
 import '../../ui/widgets.dart';
+import '../../ui/layout.dart';
+import 'lock_overlay.dart';
 import 'player_session.dart';
 import 'tap_zones.dart';
 import 'video_fit.dart';
@@ -47,6 +49,9 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
   Timer? _hudTimer;
 
   bool _visible = true;
+
+  /// Phones only: touches are ignored until Unlock is tapped.
+  bool _locked = false;
   bool _playing = false;
   bool _buffering = false;
   Duration _position = Duration.zero;
@@ -58,7 +63,10 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
   IconData? _hudIcon;
   double _gestureStartValue = 0;
 
-  bool get _mobile => Platform.isAndroid || Platform.isIOS;
+  /// Brightness below the backlight's minimum (see [Dimming]), 0 when unused.
+  double _shadeLevel = 0;
+
+  bool get _mobile => isMobile;
   bool get _wide => MediaQuery.sizeOf(context).width >= 700;
 
   @override
@@ -235,11 +243,7 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
       // Updates wait for the current brightness, or they would start from the
       // previous gesture's value (a 0-100 volume) and jump to full.
       _gestureReady = false;
-      try {
-        _gestureStartValue = await ScreenBrightness.instance.application;
-      } catch (_) {
-        _gestureStartValue = 0.5;
-      }
+      _gestureStartValue = _shadeLevel < 0 ? _shadeLevel : await Dimming.current();
       _gestureReady = true;
     } else {
       _gestureStartValue = _volume;
@@ -258,9 +262,11 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
     if (!_gestureReady) return;
     final frac = _gestureDy / (h * 0.7);
     if (_gestureLeft) {
-      final v = (_gestureStartValue + frac).clamp(0.0, 1.0);
-      unawaited(ScreenBrightness.instance.setApplicationScreenBrightness(v).catchError((_) {}));
-      _showHud(Icons.brightness_6_rounded, '${(v * 100).round()}%');
+      // Past the backlight's minimum a black layer takes over, down to Dimming.darkest.
+      final v = Dimming.clamp(_gestureStartValue + frac);
+      setState(() => _shadeLevel = v < 0 ? v : 0);
+      unawaited(Dimming.apply(v));
+      _showHud(Dimming.icon(v), '${Dimming.percent(v)}%');
     } else {
       _setVolume(_gestureStartValue + frac * 100);
     }
@@ -270,6 +276,9 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
   @override
   Widget build(BuildContext context) {
     final showUi = _visible || s.phase != SessionPhase.ready;
+    // A lock only makes sense while something is playing; errors and loading
+    // need their buttons.
+    if (_locked && s.phase != SessionPhase.ready) _locked = false;
     return Focus(
       focusNode: _focus,
       autofocus: true,
@@ -282,27 +291,34 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
           }
         },
         child: Stack(fit: StackFit.expand, children: [
+          // Extra darkness over the picture, under the controls.
+          DimShade(level: _shadeLevel),
           // Hit layer: phones skip by side on double tap; desktop double click
           // toggles fullscreen.
-          if (_mobile)
+          if (_locked)
+            LockOverlay(onUnlock: () {
+              setState(() => _locked = false);
+              _poke();
+            })
+          else if (_mobile)
             TapZones(
               onTap: _toggleVisible,
               onDoubleTap: _onDoubleTap,
+              onHoldRight: s.setBoost,
               onVerticalDragStart: _dragStart,
               onVerticalDragUpdate: _dragUpdate,
             )
           else
-            GestureDetector(
-              behavior: HitTestBehavior.opaque,
+            TapZones(
               onTap: _togglePlay,
-              onDoubleTap: () => unawaited(_toggleFullscreen()),
-              child: const SizedBox.expand(),
+              onDoubleTap: (_) => unawaited(_toggleFullscreen()),
+              onHoldRight: s.setBoost,
             ),
           // Overlay
           IgnorePointer(
-            ignoring: !showUi,
+            ignoring: !showUi || _locked,
             child: AnimatedOpacity(
-              opacity: showUi ? 1 : 0,
+              opacity: showUi && !_locked ? 1 : 0,
               duration: const Duration(milliseconds: 220),
               child: _overlay(context),
             ),
@@ -313,6 +329,7 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
           if (s.phase == SessionPhase.ready && _buffering)
             const Center(child: SizedBox(width: 44, height: 44, child: CircularProgressIndicator(strokeWidth: 3, color: Colors.white70))),
           if (_hud != null) _hudWidget(),
+          if (s.boosted) _boostBadge(context),
           _toast(context),
         ]),
       ),
@@ -361,6 +378,18 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
                 ),
               ]),
             ),
+            if (_mobile)
+              IconButton(
+                tooltip: tr.lockControls,
+                icon: const Icon(Icons.lock_outline_rounded),
+                onPressed: () {
+                  _hide?.cancel();
+                  setState(() {
+                    _locked = true;
+                    _visible = false;
+                  });
+                },
+              ),
           ]),
         ),
       ),
@@ -480,14 +509,16 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
     return Tooltip(
       message: tip,
       child: InkWell(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(24),
         onTap: () {
           _poke();
           onTap();
         },
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-          child: Row(mainAxisSize: MainAxisSize.min, children: [
+        // At least 48 x 48 so each button is easy to hit on a phone.
+        child: Container(
+          constraints: const BoxConstraints(minWidth: kMinTouch, minHeight: kMinTouch),
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          child: Row(mainAxisSize: MainAxisSize.min, mainAxisAlignment: MainAxisAlignment.center, children: [
             Icon(icon, size: 24, color: active ? kAccent : Colors.white),
             if (label != null) ...[
               const SizedBox(width: 6),
@@ -534,7 +565,7 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
         Positioned(
           top: 8 + MediaQuery.paddingOf(context).top,
           left: 8,
-          child: IconButton(icon: const Icon(Icons.arrow_back_rounded), onPressed: widget.onClose),
+          child: IconButton(tooltip: tr.back, icon: const Icon(Icons.arrow_back_rounded), onPressed: widget.onClose),
         ),
         EmptyState(
           icon: Icons.error_outline_rounded,
@@ -546,6 +577,26 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
       ]),
     );
   }
+
+  Widget _boostBadge(BuildContext context) => Positioned(
+        top: MediaQuery.paddingOf(context).top + 24,
+        left: 0,
+        right: 0,
+        child: IgnorePointer(
+          child: Center(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+              decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.6), borderRadius: BorderRadius.circular(20)),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                const Icon(Icons.fast_forward_rounded, size: 20),
+                const SizedBox(width: 6),
+                Text('${PlayerSession.boostRate.toStringAsFixed(0)}×',
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+              ]),
+            ),
+          ),
+        ),
+      );
 
   Widget _hudWidget() => Center(
         child: Container(

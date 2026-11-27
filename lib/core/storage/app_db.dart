@@ -2,11 +2,16 @@ import 'dart:async';
 
 import 'package:hive_ce/hive.dart';
 
+import '../manga/manga_models.dart';
+import 'manga_records.dart';
 import 'records.dart';
+
+part 'manga_store.dart';
 
 /// Local database (Hive CE, JSON-ish maps). Decision recorded in DECISIONS.md.
 class AppDb {
-  AppDb._(this._shows, this._episodes, this._history, this._downloads, this._settings, this._misc);
+  AppDb._(this._shows, this._episodes, this._history, this._downloads, this._settings, this._misc, this._manga,
+      this._mangaChapters, this._mangaState, this._mangaUpdates, this._mangaDownloads);
 
   final Box<dynamic> _shows;
   final Box<dynamic> _episodes;
@@ -14,17 +19,22 @@ class AppDb {
   final Box<dynamic> _downloads;
   final Box<dynamic> _settings;
   final Box<dynamic> _misc;
+  final Box<dynamic> _manga;
+  final Box<dynamic> _mangaChapters;
+  final Box<dynamic> _mangaState;
+  final Box<dynamic> _mangaUpdates;
+  final Box<dynamic> _mangaDownloads;
 
   static Future<AppDb> open(String dir) async {
     Hive.init(dir);
-    return AppDb._(
-      await Hive.openBox<dynamic>('shows'),
-      await Hive.openBox<dynamic>('episodes'),
-      await Hive.openBox<dynamic>('history'),
-      await Hive.openBox<dynamic>('downloads'),
-      await Hive.openBox<dynamic>('settings'),
-      await Hive.openBox<dynamic>('misc'),
-    );
+    final b = await Future.wait([
+      for (final name in const [
+        'shows', 'episodes', 'history', 'downloads', 'settings', 'misc', //
+        'manga', 'manga_chapters', 'manga_state', 'manga_updates', 'manga_downloads',
+      ])
+        Hive.openBox<dynamic>(name),
+    ]);
+    return AppDb._(b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7], b[8], b[9], b[10]);
   }
 
   Future<void> close() => Hive.close();
@@ -133,7 +143,6 @@ class AppDb {
   T? setting<T>(String key) => _settings.get(key) as T?;
   Future<void> setSetting(String key, Object? value) =>
       value == null ? _settings.delete(key) : _settings.put(key, value);
-  Stream<int> watchSettings() => _watch(_settings, () => _settings.length + DateTime.now().microsecondsSinceEpoch);
 
   T? misc<T>(String key) => _misc.get(key) as T?;
   Future<void> setMisc(String key, Object? value) =>

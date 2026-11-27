@@ -3,8 +3,10 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/downloads/download_manager.dart';
+import '../features/manga/manga_providers.dart';
 import '../features/settings/language_screen.dart';
 import '../features/sync/sync_controller.dart';
+import '../ui/back_shortcuts.dart';
 import 'providers.dart';
 import 'strings.dart';
 import 'shell.dart';
@@ -17,11 +19,14 @@ class OobleckApp extends ConsumerStatefulWidget {
 }
 
 class _OobleckAppState extends ConsumerState<OobleckApp> with WidgetsBindingObserver {
+  final _navigatorKey = GlobalKey<NavigatorState>();
+
   @override
   void initState() {
     super.initState();
     // Start the download queue so interrupted downloads resume on launch.
     ref.read(downloadManagerProvider);
+    ref.read(mangaDownloaderProvider);
     WidgetsBinding.instance.addObserver(this);
     // Pull history from other devices on launch (no-op when signed out).
     ref.read(syncProvider.notifier).syncSoon();
@@ -43,6 +48,8 @@ class _OobleckAppState extends ConsumerState<OobleckApp> with WidgetsBindingObse
     final language = ref.watch(settingsProvider.select((s) => s.language));
     return MaterialApp(
       title: 'Oobleck',
+      navigatorKey: _navigatorKey,
+      builder: (context, child) => BackShortcuts(navigatorKey: _navigatorKey, child: child!),
       locale: Strings.forCode(language).locale,
       supportedLocales: const [Locale('en'), Locale('ko')],
       localizationsDelegates: const [

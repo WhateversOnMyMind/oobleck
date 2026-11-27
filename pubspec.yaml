@@ -55,6 +55,7 @@ dependencies:
   intl: ^0.20.3
   screen_brightness: ^2.1.11
   wakelock_plus: ^1.8.2
+  scrollable_positioned_list: ^0.3.8
 
 dev_dependencies:
   flutter_test:
@@ -82,6 +83,11 @@ flutter:
 
   assets:
     - assets/shaders/anime4k/
+
+  # Fragment shaders for the manga reader's upscaler (lib/core/manga/upscale/).
+  shaders:
+    - shaders/manga_upscale.frag
+    - shaders/manga_sharpen.frag
 
   # To add assets to your application, add an assets section, like this:
   # assets:
