@@ -84,6 +84,11 @@ flutter:
   assets:
     - assets/shaders/anime4k/
 
+  # Fragment shaders for the manga reader's upscaler (lib/core/manga/upscale/).
+  shaders:
+    - shaders/manga_upscale.frag
+    - shaders/manga_sharpen.frag
+
   # To add assets to your application, add an assets section, like this:
   # assets:
   #   - images/a_dot_burr.jpeg
