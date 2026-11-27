@@ -41,4 +41,35 @@ void main() {
     expect(zones, [TapZone.back, TapZone.forward, TapZone.back, TapZone.middle]);
     expect(taps, 1, reason: 'double taps are not counted as single taps');
   });
+
+  testWidgets('holding the right half speeds up until released; the left half and taps do not', (tester) async {
+    tester.view.physicalSize = const Size(900, 400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final holds = <bool>[];
+    var taps = 0;
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(body: TapZones(onTap: () => taps++, onDoubleTap: (_) {}, onHoldRight: holds.add)),
+    ));
+
+    Future<void> hold(Offset at) async {
+      final g = await tester.startGesture(at);
+      await tester.pump(const Duration(milliseconds: 700));
+      expect(holds.lastOrNull, at.dx > 450 ? isTrue : isNot(true), reason: 'while held at $at');
+      await g.up();
+      await tester.pump(const Duration(milliseconds: 400));
+    }
+
+    await hold(const Offset(800, 200));
+    expect(holds, [true, false]);
+    await hold(const Offset(100, 200));
+    expect(holds.where((h) => h), hasLength(1), reason: 'left half never speeds up');
+    expect(holds.last, isFalse);
+    expect(taps, 0, reason: 'a hold is not a tap');
+
+    await tester.tapAt(const Offset(800, 200));
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(taps, 1);
+    expect(holds.where((h) => h), hasLength(1), reason: 'a quick tap does not speed up');
+  });
 }

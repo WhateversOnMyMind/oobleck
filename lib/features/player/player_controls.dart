@@ -301,15 +301,15 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
             TapZones(
               onTap: _toggleVisible,
               onDoubleTap: _onDoubleTap,
+              onHoldRight: s.setBoost,
               onVerticalDragStart: _dragStart,
               onVerticalDragUpdate: _dragUpdate,
             )
           else
-            GestureDetector(
-              behavior: HitTestBehavior.opaque,
+            TapZones(
               onTap: _togglePlay,
-              onDoubleTap: () => unawaited(_toggleFullscreen()),
-              child: const SizedBox.expand(),
+              onDoubleTap: (_) => unawaited(_toggleFullscreen()),
+              onHoldRight: s.setBoost,
             ),
           // Overlay
           IgnorePointer(
@@ -326,6 +326,7 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
           if (s.phase == SessionPhase.ready && _buffering)
             const Center(child: SizedBox(width: 44, height: 44, child: CircularProgressIndicator(strokeWidth: 3, color: Colors.white70))),
           if (_hud != null) _hudWidget(),
+          if (s.boosted) _boostBadge(context),
           _toast(context),
         ]),
       ),
@@ -573,6 +574,26 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
       ]),
     );
   }
+
+  Widget _boostBadge(BuildContext context) => Positioned(
+        top: MediaQuery.paddingOf(context).top + 24,
+        left: 0,
+        right: 0,
+        child: IgnorePointer(
+          child: Center(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+              decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.6), borderRadius: BorderRadius.circular(20)),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                const Icon(Icons.fast_forward_rounded, size: 20),
+                const SizedBox(width: 6),
+                Text('${PlayerSession.boostRate.toStringAsFixed(0)}×',
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+              ]),
+            ),
+          ),
+        ),
+      );
 
   Widget _hudWidget() => Center(
         child: Container(
