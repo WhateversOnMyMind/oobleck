@@ -163,8 +163,7 @@ Future<void> cacheMangaCover(Ref ref, MangaRecord m) async {
 }
 
 /// Saves a card the user tapped so the detail screen can draw at once.
-Future<String> rememberSummary(Ref ref, MangaSource source, MangaSummary s) async {
-  final db = ref.read(dbProvider);
+Future<String> rememberSummary(AppDb db, MangaSource source, MangaSummary s) async {
   final key = mangaKeyOf(source.id, s.id);
   if (db.manga(key) == null) await db.putManga(MangaRecord.fromSummary(source.id, s));
   return key;
