@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 
+import 'image_header.dart';
 import 'manga_models.dart';
 
 /// Every copy of a page failed. [toString] lists what each host answered.
@@ -107,7 +108,8 @@ class PageFetcher {
       final data = r.data;
       if (data == null || data.isEmpty) throw const FormatException('empty image');
       final bytes = data is Uint8List ? data : Uint8List.fromList(data);
-      if (!_looksLikeImage(bytes)) throw const FormatException('not an image');
+      // A filter or error page served with status 200 is not a page.
+      if (sniffImage(bytes) == null) throw FormatException('not an image (${describeNonImage(bytes)})');
       return bytes;
     } on DioException catch (e) {
       if (stalled) {
@@ -121,14 +123,5 @@ class PageFetcher {
     } finally {
       timer?.cancel();
     }
-  }
-
-  /// Rejects HTML (a filter or error page served with status 200).
-  static bool _looksLikeImage(Uint8List b) {
-    var i = 0;
-    while (i < b.length && i < 64 && (b[i] == 0x20 || b[i] == 0x09 || b[i] == 0x0a || b[i] == 0x0d)) {
-      i++;
-    }
-    return i >= b.length || b[i] != 0x3c; // '<'
   }
 }

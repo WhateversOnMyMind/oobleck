@@ -106,7 +106,10 @@ in two attempts). The same tests pass locally with libmpv 0.37 + ffmpeg. The job
 - **Page images**: each page and its mirror get one quick try in turn (12 s without data counts as failed), and a
   host that just failed goes last for the next pages, so a blocked image host costs seconds once instead of minutes
   per page. The reader opens after at most 6 s even if the first image is slow; failed pages show Retry and Details.
-  Tests: `test/page_fetch_test.dart`
+  Page sizes for the automatic layout are read from the file header (JPEG/PNG/GIF/WebP), so opening a chapter no
+  longer goes through the image decoder. Anything that is not an image (an error page served as 200) is rejected
+  before decoding, and a page that takes over 20 s to decode shows an error. Not yet confirmed on a phone.
+  Tests: `test/page_fetch_test.dart`, `test/image_header_test.dart`
 - **Downloads**: queue with pause/resume, resumes at launch, offline reading, "delete read chapters"
 - **Upscaling**: GPU FSR 1.0 based upscale + sharpen, on by default, strength in reader settings
 - **Comfort pass (whole app)**: Esc / mouse back closes pages; hover rings and full-title tooltips on cards; right click

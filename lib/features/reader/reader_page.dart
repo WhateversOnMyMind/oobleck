@@ -5,6 +5,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 
 import '../../app/strings.dart';
+import '../../core/manga/image_header.dart';
 import '../manga/manga_strings.dart';
 import '../../ui/widgets.dart';
 import 'page_paint.dart';
@@ -51,6 +52,9 @@ class ReaderPage extends StatefulWidget {
   State<ReaderPage> createState() => _ReaderPageState();
 }
 
+/// Longest a page may take to decode before it shows an error.
+const decodeTimeout = Duration(seconds: 20);
+
 class _ReaderPageState extends State<ReaderPage> {
   ui.Image? _image;
   Uint8List? _bytes;
@@ -88,16 +92,31 @@ class _ReaderPageState extends State<ReaderPage> {
     try {
       final bytes = await widget.load(widget.pageRef);
       if (!mounted || attempt != _attempt) return;
-      final buffer = await ui.ImmutableBuffer.fromUint8List(bytes);
-      final codec = await ui.instantiateImageCodecWithSize(buffer, getTargetSize: (w, h) {
-        var tw = w;
-        if (w > targetW) tw = targetW;
-        // Taller strips are scaled down to stay inside GPU texture limits.
-        if (h * tw / w > maxPageTextureSide) tw = (w * maxPageTextureSide / h).floor();
-        return tw == w ? ui.TargetImageSize(width: w, height: h) : ui.TargetImageSize(width: tw);
+      // Hand the decoder only real images: on some phones a file it cannot
+      // read can leave it waiting forever instead of failing.
+      if (sniffImage(bytes) == null) throw FormatException('not an image (${describeNonImage(bytes)})');
+      Future<ui.FrameInfo> decode() async {
+        final buffer = await ui.ImmutableBuffer.fromUint8List(bytes);
+        final codec = await ui.instantiateImageCodecWithSize(buffer, getTargetSize: (w, h) {
+          var tw = w;
+          if (w > targetW) tw = targetW;
+          // Taller strips are scaled down to stay inside GPU texture limits.
+          if (h * tw / w > maxPageTextureSide) tw = (w * maxPageTextureSide / h).floor();
+          return tw == w ? ui.TargetImageSize(width: w, height: h) : ui.TargetImageSize(width: tw);
+        });
+        try {
+          return await codec.getNextFrame();
+        } finally {
+          codec.dispose();
+        }
+      }
+
+      final pending = decode();
+      final frame = await pending.timeout(decodeTimeout, onTimeout: () {
+        // Free the image if it turns up after all.
+        unawaited(pending.then((f) => f.image.dispose(), onError: (_) {}));
+        throw TimeoutException('page did not decode in ${decodeTimeout.inSeconds}s (${describeNonImage(bytes)})');
       });
-      final frame = await codec.getNextFrame();
-      codec.dispose();
       if (!mounted || attempt != _attempt) {
         frame.image.dispose();
         return;

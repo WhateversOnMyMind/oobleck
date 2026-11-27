@@ -7,6 +7,7 @@ import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
 import 'package:path/path.dart' as p;
 
+import 'image_header.dart';
 import 'manga_models.dart';
 import 'page_fetch.dart';
 
@@ -45,7 +46,8 @@ class PageCache {
     if (file.existsSync()) {
       try {
         final b = await file.readAsBytes();
-        if (b.isNotEmpty) {
+        // Older versions could have cached an error page; fetch those again.
+        if (sniffImage(b) != null) {
           unawaited(file.setLastModified(DateTime.now()).catchError((_) {}));
           return b;
         }

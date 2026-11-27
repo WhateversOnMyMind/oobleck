@@ -5,6 +5,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 
 import '../../core/log.dart';
+import '../../core/manga/image_header.dart';
 import '../../core/manga/manga_models.dart';
 import '../../core/manga/page_cache.dart';
 import '../../core/sources/manga_source.dart';
@@ -168,13 +169,17 @@ class ReaderController extends ChangeNotifier {
     final chosen = own != ReaderMode.auto ? own : settings().mode;
     if (chosen != ReaderMode.auto) return chosen;
     if (rc.pages.isEmpty) return ReaderMode.webtoon;
-    try {
-      // Don't hold the whole reader on one slow image: the page keeps loading
-      // on its own and shows its own progress or error.
-      final bytes = await bytesOf(rc.pages.first).timeout(decideTimeout);
-      final size = await imageSize(bytes);
+    // Don't hold the whole reader on one slow image: the page keeps loading
+    // on its own and shows its own progress or error.
+    Future<ReaderMode> look() async {
+      final size = await imageSize(await bytesOf(rc.pages.first));
       return autoModeFor(size.width, size.height);
-    } catch (_) {
+    }
+
+    try {
+      return await look().timeout(decideTimeout);
+    } catch (e) {
+      Log.d('reader', 'auto layout: $e');
       return ReaderMode.webtoon;
     }
   }
@@ -308,6 +313,10 @@ ReaderMode autoModeFor(int width, int height) =>
 
 /// Image dimensions without decoding the pixels.
 Future<({int width, int height})> imageSize(Uint8List bytes) async {
+  // The header is enough for the common formats and needs no decoder.
+  final quick = headerSize(bytes);
+  if (quick != null) return quick;
+  if (sniffImage(bytes) == null) throw FormatException('not an image (${describeNonImage(bytes)})');
   final buffer = await ui.ImmutableBuffer.fromUint8List(bytes);
   final desc = await ui.ImageDescriptor.encoded(buffer);
   final r = (width: desc.width, height: desc.height);
