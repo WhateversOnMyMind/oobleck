@@ -199,8 +199,17 @@ extension MangaStrings on Strings {
   // ---- settings -------------------------------------------------------------------
   String get mangaSettings => pick('Manga reader', '만화 뷰어');
   String get mangaSiteAddress => pick('11toon address', '11toon 주소');
-  String get mangaSiteAddressHint =>
-      pick('Change this if the site moves to a new domain.', '사이트 주소가 바뀌면 여기서 고쳐 주세요.');
+  String get mangaSiteAddressHint => pick(
+      'Found automatically when the site moves. Type one only to force a specific address.',
+      '사이트가 옮겨 가면 자동으로 찾아요. 특정 주소를 쓰고 싶을 때만 직접 입력하세요.');
+  String get findSiteAddress => pick('Find current address', '현재 주소 찾기');
+  String get findingSiteAddress => pick('Looking for the current address…', '현재 주소를 찾는 중…');
+  String siteAddressFound(String url) => pick('Switched to $url', '$url 주소로 바꿨어요');
+  String get siteAddressUnchanged => pick('The current address already works', '지금 주소가 이미 작동해요');
+  String get siteAddressNotFound =>
+      pick("Couldn't find a working address. Check the internet connection.", '작동하는 주소를 찾지 못했어요. 인터넷 연결을 확인해 주세요.');
+  String get siteAddressTyped => pick('typed by you', '직접 입력');
+  String get siteAddressAuto => pick('found automatically', '자동으로 찾음');
   String get pageCache => pick('Page cache', '이미지 캐시');
   String pageCacheSize(String size) => pick('$size used', '$size 사용 중');
   String get clearPageCache => pick('Clear page cache', '이미지 캐시 지우기');

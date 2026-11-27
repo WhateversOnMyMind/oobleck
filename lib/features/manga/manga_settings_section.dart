@@ -4,7 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/strings.dart';
+import '../../app/providers.dart';
+import '../../core/sources/toon11/toon11_address.dart';
 import '../../core/sources/toon11/toon11_source.dart';
+import '../../ui/feedback.dart';
 import '../../ui/widgets.dart';
 import '../reader/reader_overlay.dart';
 import 'manga_downloads_screen.dart';
@@ -20,6 +23,18 @@ class MangaSettingsSection extends ConsumerStatefulWidget {
 
 class _MangaSettingsSectionState extends ConsumerState<MangaSettingsSection> {
   int? _cacheBytes;
+  bool _finding = false;
+
+  Future<void> _findAddress(Strings tr) async {
+    setState(() => _finding = true);
+    final finder = ref.read(mangaSiteFinderProvider);
+    final before = ref.read(mangaSiteAddressProvider);
+    final found = await finder.recover(fromSettings: true);
+    final works = found != null || await Toon11AddressFinder(ref.read(dioProvider)).works(before);
+    if (!mounted) return;
+    setState(() => _finding = false);
+    showAppSnackBar(context, found != null ? tr.siteAddressFound(found) : works ? tr.siteAddressUnchanged : tr.siteAddressNotFound);
+  }
 
   @override
   void initState() {
@@ -36,6 +51,8 @@ class _MangaSettingsSectionState extends ConsumerState<MangaSettingsSection> {
   Widget build(BuildContext context) {
     final tr = Strings.of(context);
     final base = ref.watch(mangaBaseUrlProvider);
+    final address = ref.watch(mangaSiteAddressProvider);
+    final found = ref.watch(mangaFoundUrlProvider);
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       SectionHeader(tr.mangaSettings),
       ListTile(
@@ -53,9 +70,20 @@ class _MangaSettingsSectionState extends ConsumerState<MangaSettingsSection> {
       ListTile(
         leading: const Icon(Icons.link_rounded),
         title: Text(tr.mangaSiteAddress),
-        subtitle: Text('${base ?? Toon11Source.defaultBaseUrl}\n${tr.mangaSiteAddressHint}'),
+        subtitle: Text([
+          address + (base != null ? ' (${tr.siteAddressTyped})' : found != null ? ' (${tr.siteAddressAuto})' : ''),
+          tr.mangaSiteAddressHint,
+        ].join('\n')),
         isThreeLine: true,
         onTap: () => _editAddress(tr, base),
+      ),
+      ListTile(
+        leading: _finding
+            ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2.5))
+            : const Icon(Icons.travel_explore_rounded),
+        title: Text(tr.findSiteAddress),
+        enabled: !_finding,
+        onTap: () => _findAddress(tr),
       ),
       ListTile(
         leading: const Icon(Icons.image_outlined),
@@ -73,7 +101,7 @@ class _MangaSettingsSectionState extends ConsumerState<MangaSettingsSection> {
   }
 
   Future<void> _editAddress(Strings tr, String? current) async {
-    final ctl = TextEditingController(text: current ?? Toon11Source.defaultBaseUrl);
+    final ctl = TextEditingController(text: current ?? ref.read(mangaSiteAddressProvider));
     final result = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
@@ -95,6 +123,8 @@ class _MangaSettingsSectionState extends ConsumerState<MangaSettingsSection> {
     ctl.dispose();
     if (result == null) return;
     final v = result.trim();
+    // Saving the address in use unchanged must not pin it as typed by hand.
+    if (current == null && v == ref.read(mangaSiteAddressProvider)) return;
     await ref.read(mangaBaseUrlProvider.notifier).set(v == Toon11Source.defaultBaseUrl ? null : v);
   }
 }

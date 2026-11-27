@@ -6,20 +6,22 @@ import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:oobleck/core/http.dart';
 import 'package:oobleck/core/manga/manga_models.dart';
+import 'package:oobleck/core/sources/toon11/toon11_address.dart';
 import 'package:oobleck/core/sources/toon11/toon11_source.dart';
 
 void main() {
   final live = Platform.environment['OOBLECK_LIVE'] == '1';
   final skip = live ? false : 'set OOBLECK_LIVE=1';
   final dio = buildDio();
-  final source = Toon11Source(dio: dio);
+  // OOBLECK_TOON11=http://host:port checks another address of the site.
+  final source = Toon11Source(dio: dio, baseUrl: Platform.environment['OOBLECK_TOON11'] ?? Toon11Source.defaultBaseUrl);
 
   void expectCards(MangaListing l, {int atLeast = 1}) {
     expect(l.items.length, greaterThanOrEqualTo(atLeast));
     for (final m in l.items) {
       expect(int.tryParse(m.id), isNotNull);
       expect(m.title, isNotEmpty);
-      expect(m.cover, startsWith('https://'));
+      expect(m.cover, startsWith('http'), reason: 'absolute; http when the site is reached by IP');
     }
   }
 
@@ -91,4 +93,11 @@ void main() {
       expect(r.data!.length, greaterThan(1000));
     }
   }, skip: skip, timeout: const Timeout(Duration(minutes: 2)));
+
+  test('the public address page links a working address', () async {
+    final found = await Toon11AddressFinder(dio).find();
+    // ignore: avoid_print
+    print('address from the public page: $found');
+    expect(found, isNotNull);
+  }, skip: skip, timeout: const Timeout(Duration(minutes: 1)));
 }

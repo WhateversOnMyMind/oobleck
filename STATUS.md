@@ -98,6 +98,11 @@ in two attempts). The same tests pass locally with libmpv 0.37 + ffmpeg. The job
   Automatic picks strip or pages from the first image. Tap zones (5 layouts, invert), pinch and double-tap zoom, page
   slider, keyboard and volume keys, swipe past the end card for the next chapter, dimming, grayscale, keep screen on,
   fullscreen, incognito, save page as image. Position saved per chapter
+- **Site address**: when 11toon does not answer (moved, or blocked on this network), the app looks up the current
+  address on Namuwiki's 일일툰 article, checks it and switches to it. Settings > Manga reader shows the address in use
+  and has "Find current address"; an address typed there is never replaced automatically. Live check:
+  `OOBLECK_LIVE=1 flutter test test/toon11_live_test.dart` (add `OOBLECK_TOON11=http://host:port` to test another address)
+- **Error screens** have a Details button with the technical message (DNS, reset, certificate, HTTP code)
 - **Downloads**: queue with pause/resume, resumes at launch, offline reading, "delete read chapters"
 - **Upscaling**: GPU FSR 1.0 based upscale + sharpen, on by default, strength in reader settings
 - **Comfort pass (whole app)**: Esc / mouse back closes pages; hover rings and full-title tooltips on cards; right click

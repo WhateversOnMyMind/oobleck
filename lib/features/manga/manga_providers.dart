@@ -11,6 +11,8 @@ import '../../core/manga/manga_downloader.dart';
 import '../../core/manga/manga_models.dart';
 import '../../core/manga/page_cache.dart';
 import '../../core/sources/manga_source.dart';
+import '../../core/sources/toon11/toon11_address.dart';
+import '../../core/sources/toon11/toon11_source.dart';
 import '../../core/storage/app_db.dart';
 import '../../core/storage/manga_records.dart';
 import 'manga_logic.dart';
@@ -29,7 +31,8 @@ class MangaBaseUrl extends Notifier<String?> {
     while (u.endsWith('/')) {
       u = u.substring(0, u.length - 1);
     }
-    if (u.isNotEmpty && !u.contains('://')) u = 'https://$u';
+    // Bare IP addresses (how 11toon is often reachable) are plain http.
+    if (u.isNotEmpty && !u.contains('://')) u = RegExp(r'^\d+\.\d+\.\d+\.\d+(:\d+)?$').hasMatch(u) ? 'http://$u' : 'https://$u';
     await ref.read(dbProvider).setSetting(mangaBaseUrlKey, u.isEmpty ? null : u);
     state = u.isEmpty ? null : u;
   }
@@ -37,10 +40,66 @@ class MangaBaseUrl extends Notifier<String?> {
 
 final mangaBaseUrlProvider = NotifierProvider<MangaBaseUrl, String?>(MangaBaseUrl.new);
 
+/// Settings key for the address found automatically (see [MangaSiteFinder]).
+const mangaFoundUrlKey = 'manga.toon11Found';
+
+/// The last address that was found to work when the default did not.
+class MangaFoundUrl extends Notifier<String?> {
+  @override
+  String? build() => ref.watch(dbProvider).setting<String>(mangaFoundUrlKey);
+
+  Future<void> set(String? url) async {
+    await ref.read(dbProvider).setSetting(mangaFoundUrlKey, url);
+    state = url;
+  }
+}
+
+final mangaFoundUrlProvider = NotifierProvider<MangaFoundUrl, String?>(MangaFoundUrl.new);
+
+/// The address in use: typed in Settings, else found automatically, else the default.
+final mangaSiteAddressProvider = Provider<String>(
+    (ref) => ref.watch(mangaBaseUrlProvider) ?? ref.watch(mangaFoundUrlProvider) ?? Toon11Source.defaultBaseUrl);
+
+/// Looks up the site's current address when loading fails (the site moves
+/// and some networks block its domains). Never runs over an address typed
+/// in Settings unless asked from there.
+class MangaSiteFinder {
+  MangaSiteFinder(this.ref);
+  final Ref ref;
+  Future<String?>? _running;
+  DateTime? _lastAuto;
+
+  /// Finds a working address and switches to it. Returns the new address, or
+  /// null when nothing changed. Automatic calls run at most once a minute.
+  Future<String?> recover({bool fromSettings = false}) async {
+    if (!fromSettings) {
+      if (ref.read(mangaBaseUrlProvider) != null) return null;
+      final now = DateTime.now();
+      if (_lastAuto != null && now.difference(_lastAuto!) < const Duration(minutes: 1)) return null;
+      _lastAuto = now;
+    }
+    return _running ??= _find(fromSettings).whenComplete(() => _running = null);
+  }
+
+  Future<String?> _find(bool fromSettings) async {
+    final current = ref.read(mangaSiteAddressProvider);
+    final finder = Toon11AddressFinder(ref.read(dioProvider));
+    // Settings asks for the newest address, so the public page comes first.
+    final found = await finder.find(tryFirst: fromSettings ? const [] : [Toon11Source.defaultBaseUrl]);
+    Log.d('manga', 'site address: $current -> ${found ?? 'none found'}');
+    if (found == null || found == current) return null;
+    if (fromSettings) await ref.read(mangaBaseUrlProvider.notifier).set(null);
+    await ref.read(mangaFoundUrlProvider.notifier).set(found == Toon11Source.defaultBaseUrl ? null : found);
+    return found;
+  }
+}
+
+final mangaSiteFinderProvider = Provider<MangaSiteFinder>(MangaSiteFinder.new);
+
 /// The manga site. One for now; storage keys carry the source id so more
 /// can be added later.
 final mangaSourceProvider = Provider<MangaSource>((ref) {
-  return buildMangaSource(ref.watch(dioProvider), baseUrl: ref.watch(mangaBaseUrlProvider));
+  return buildMangaSource(ref.watch(dioProvider), baseUrl: ref.watch(mangaSiteAddressProvider));
 });
 
 MangaSource? mangaSourceFor(Ref ref, String sourceId) {
@@ -106,7 +165,14 @@ final mangaRefreshProvider = FutureProvider.family<MangaRecord, String>((ref, ke
     throw StateError('unknown source $sourceId');
   }
   try {
-    return (await refreshSeries(db, source, mangaId, cacheCover: (m) => cacheMangaCover(ref, m))).$1;
+    try {
+      return (await refreshSeries(db, source, mangaId, cacheCover: (m) => cacheMangaCover(ref, m))).$1;
+    } catch (_) {
+      // The site may have moved: look up its address once, then try again there.
+      if (await ref.read(mangaSiteFinderProvider).recover() == null) rethrow;
+      final moved = mangaSourceFor(ref, sourceId) ?? source;
+      return (await refreshSeries(db, moved, mangaId, cacheCover: (m) => cacheMangaCover(ref, m))).$1;
+    }
   } catch (e) {
     if (existing != null && db.chapters(key).isNotEmpty) {
       Log.d('manga', 'refresh $key failed, using saved copy: $e');
@@ -298,6 +364,9 @@ class ListingNotifier extends Notifier<ListingState> {
 
   @override
   ListingState build() {
+    // A new site address rebuilds the listing.
+    ref.watch(mangaSourceProvider);
+    _request++;
     Future.microtask(loadMore);
     return const ListingState(loading: true);
   }
@@ -326,6 +395,10 @@ class ListingNotifier extends Notifier<ListingState> {
         loading: false,
       );
     } catch (e) {
+      if (request != _request) return;
+      // First page failed: the site may have moved. A new address rebuilds
+      // this listing (see build), so there is nothing more to do here.
+      if (page == 1 && await ref.read(mangaSiteFinderProvider).recover() != null) return;
       if (request != _request) return;
       state = state.copyWith(loading: false, error: e);
     }
