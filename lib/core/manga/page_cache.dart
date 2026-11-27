@@ -38,7 +38,11 @@ class PageCache {
   /// same page share one download.
   Future<Uint8List> bytes(MangaPage page, {Map<String, String> headers = const {}, CancelToken? cancel}) {
     final key = page.url;
-    return _inFlight[key] ??= _load(page, headers, cancel).whenComplete(() => _inFlight.remove(key));
+    // A block body on purpose: `=> _inFlight.remove(key)` would return this
+    // very future, and whenComplete would then wait for itself forever.
+    return _inFlight[key] ??= _load(page, headers, cancel).whenComplete(() {
+      _inFlight.remove(key);
+    });
   }
 
   Future<Uint8List> _load(MangaPage page, Map<String, String> headers, CancelToken? cancel) async {
