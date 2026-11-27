@@ -1,5 +1,10 @@
 # Status
 
+**2026-11-27, v1.1.0:** the manga reader (11toon source, library, history, downloads, paged and long-strip
+reading), 2x while the right half of the player is held, and extra-dark brightness on phones. Checked on an Android
+15 emulator before release: online chapters load, pages turn, the end card leads to the next chapter, the darkest
+brightness works, and holding the right half shows the 2x badge with playback running about twice as fast.
+
 **2026-11-27, v1.0.2:** a review of the sync, localization, resume and gesture work found no crash-level bugs;
 the fixes are in v1.0.2 (see RELEASE_NOTES.md). The sync worker code is hardened (per-address login limits,
 account and row caps, session expiry) but **the live worker still runs the old code until it is redeployed**:
