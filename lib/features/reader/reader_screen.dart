@@ -10,6 +10,7 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 import '../../app/providers.dart';
 import '../../app/strings.dart';
 import '../../core/manga/upscale/upscaler.dart';
+import '../../ui/dimming.dart';
 import '../../ui/widgets.dart';
 import '../manga/manga_providers.dart';
 import '../manga/manga_strings.dart';
@@ -53,13 +54,19 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
       mangaKey: widget.mangaKey,
       settings: () => _settings,
     )..addListener(_changed);
-    ref.listenManual(readerSettingsProvider, (_, s) => _settings = s);
+    ref.listenManual(readerSettingsProvider, (prev, s) {
+      _settings = s;
+      if (Dimming.supported && prev?.brightness != s.brightness) {
+        unawaited(s.brightness == null ? Dimming.reset() : Dimming.apply(s.brightness!));
+      }
+    });
     unawaited(c.open(widget.chapterId).catchError((Object e) {
       if (mounted) setState(() => _openError = e);
     }));
     final s = ref.read(readerSettingsProvider);
     if (s.upscale) unawaited(Upscaler.load());
     if (s.keepScreenOn) unawaited(WakelockPlus.enable().catchError((_) {}));
+    if (Dimming.supported && s.brightness != null) unawaited(Dimming.apply(s.brightness!));
     if (s.fullscreen && _mobile) unawaited(_setFullscreen(true));
   }
 
@@ -75,6 +82,8 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     } finally {
       _focus.dispose();
       unawaited(WakelockPlus.disable().catchError((_) {}));
+      // The reader's brightness ends with the reader.
+      if (Dimming.supported && _settings.brightness != null) unawaited(Dimming.reset());
       if (_fullscreen) unawaited(_setFullscreen(false));
       super.dispose();
     }
@@ -259,6 +268,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
           body: Stack(fit: StackFit.expand, children: [
             body,
             if (s.dim > 0) IgnorePointer(child: ColoredBox(color: Colors.black.withValues(alpha: s.dim))),
+            if (Dimming.supported && s.brightness != null) DimShade(level: s.brightness!),
             if (s.showPageNumber && total > 0 && !c.menuVisible)
               Positioned(
                 bottom: MediaQuery.paddingOf(context).bottom + 8,

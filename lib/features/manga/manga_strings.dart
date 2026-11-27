@@ -178,6 +178,11 @@ extension MangaStrings on Strings {
   String get volumeKeys => pick('Volume keys turn pages', '볼륨 버튼으로 넘기기');
   String get fullscreenReader => pick('Fullscreen', '전체 화면');
   String get dimPages => pick('Dim pages', '화면 어둡게');
+  String get brightness => pick('Brightness', '밝기');
+  String get brightnessPhone => pick("Phone's setting", '휴대폰 설정');
+  String get brightnessUsePhone => pick("Use phone's", '휴대폰 설정 사용');
+  String get brightnessHint => pick(
+      'Goes much darker than the phone allows, never fully black.', '휴대폰 최저 밝기보다 더 어둡게 돼요. 완전히 꺼지지는 않아요.');
   String get grayscale => pick('Grayscale', '흑백');
   String get autoNextChapter => pick('Continue into the next chapter', '다음 화로 이어서 보기');
   String get incognito => pick('Incognito (no history)', '시크릿 모드 (기록 안 남김)');

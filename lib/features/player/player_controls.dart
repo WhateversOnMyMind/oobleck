@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:media_kit_video/media_kit_video.dart';
-import 'package:screen_brightness/screen_brightness.dart';
 
 import '../../app/providers.dart';
 import '../../app/strings.dart';
@@ -13,6 +12,7 @@ import '../../app/strings_ui.dart';
 import '../../app/theme.dart';
 import '../../core/models.dart';
 import '../../core/player/anime4k.dart';
+import '../../ui/dimming.dart';
 import '../../ui/widgets.dart';
 import 'lock_overlay.dart';
 import 'player_session.dart';
@@ -62,6 +62,9 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
   String? _hud; // transient centre indicator text
   IconData? _hudIcon;
   double _gestureStartValue = 0;
+
+  /// Brightness below the backlight's minimum (see [Dimming]), 0 when unused.
+  double _shadeLevel = 0;
 
   bool get _mobile => Platform.isAndroid || Platform.isIOS;
   bool get _wide => MediaQuery.sizeOf(context).width >= 700;
@@ -240,11 +243,7 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
       // Updates wait for the current brightness, or they would start from the
       // previous gesture's value (a 0-100 volume) and jump to full.
       _gestureReady = false;
-      try {
-        _gestureStartValue = await ScreenBrightness.instance.application;
-      } catch (_) {
-        _gestureStartValue = 0.5;
-      }
+      _gestureStartValue = _shadeLevel < 0 ? _shadeLevel : await Dimming.current();
       _gestureReady = true;
     } else {
       _gestureStartValue = _volume;
@@ -263,9 +262,11 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
     if (!_gestureReady) return;
     final frac = _gestureDy / (h * 0.7);
     if (_gestureLeft) {
-      final v = (_gestureStartValue + frac).clamp(0.0, 1.0);
-      unawaited(ScreenBrightness.instance.setApplicationScreenBrightness(v).catchError((_) {}));
-      _showHud(Icons.brightness_6_rounded, '${(v * 100).round()}%');
+      // Past the backlight's minimum a black layer takes over, down to Dimming.darkest.
+      final v = Dimming.clamp(_gestureStartValue + frac);
+      setState(() => _shadeLevel = v < 0 ? v : 0);
+      unawaited(Dimming.apply(v));
+      _showHud(Dimming.icon(v), '${Dimming.percent(v)}%');
     } else {
       _setVolume(_gestureStartValue + frac * 100);
     }
@@ -290,6 +291,8 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
           }
         },
         child: Stack(fit: StackFit.expand, children: [
+          // Extra darkness over the picture, under the controls.
+          DimShade(level: _shadeLevel),
           // Hit layer: phones skip by side on double tap; desktop double click
           // toggles fullscreen.
           if (_locked)

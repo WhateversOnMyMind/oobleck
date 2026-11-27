@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../app/providers.dart';
 import '../../app/strings.dart';
 import '../../core/storage/app_db.dart';
+import '../../ui/dimming.dart';
 import '../manga/manga_strings.dart';
 import 'reader_controller.dart';
 import 'reader_settings.dart';
@@ -306,6 +307,27 @@ class ReaderSettingsList extends ConsumerWidget {
             onChanged: (v) => n.set('dim', v),
           ),
         ),
+        if (mobile)
+          ListTile(
+            title: Row(children: [
+              Expanded(child: Text(tr.brightness)),
+              if (s.brightness != null)
+                TextButton(onPressed: () => n.set('brightness', null), child: Text(tr.brightnessUsePhone))
+              else
+                Text(tr.brightnessPhone, style: const TextStyle(color: Colors.white54)),
+            ]),
+            subtitle: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Slider(
+                value: s.brightness ?? 0.5,
+                min: Dimming.darkest,
+                max: 1,
+                divisions: 38,
+                label: '${Dimming.percent(s.brightness ?? 0.5)}%',
+                onChanged: (v) => n.set('brightness', v),
+              ),
+              Text(tr.brightnessHint, style: const TextStyle(color: Colors.white54)),
+            ]),
+          ),
         SwitchListTile(title: Text(tr.grayscale), value: s.grayscale, onChanged: (v) => n.set('grayscale', v)),
         SwitchListTile(title: Text(tr.showPageNumber), value: s.showPageNumber, onChanged: (v) => n.set('showPageNumber', v)),
         SwitchListTile(title: Text(tr.fullscreenReader), value: s.fullscreen, onChanged: (v) => n.set('fullscreen', v)),

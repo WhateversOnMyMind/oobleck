@@ -93,6 +93,7 @@ class ReaderSettings {
     this.volumeKeys = true,
     this.fullscreen = true,
     this.dim = 0,
+    this.brightness,
     this.grayscale = false,
     this.autoNextChapter = true,
     this.incognito = false,
@@ -119,6 +120,9 @@ class ReaderSettings {
 
   /// Extra darkening on top of the pages, 0..0.8.
   final double dim;
+
+  /// Reader brightness on phones, [Dimming.darkest]..1; null keeps the phone's own.
+  final double? brightness;
   final bool grayscale;
   final bool autoNextChapter;
   final bool incognito;
@@ -146,6 +150,7 @@ class ReaderSettings {
       volumeKeys: g('volumeKeys', true),
       fullscreen: g('fullscreen', true),
       dim: n('dim', 0),
+      brightness: db.setting<num>('${prefix}brightness')?.toDouble(),
       grayscale: g('grayscale', false),
       autoNextChapter: g('autoNextChapter', true),
       incognito: g('incognito', false),

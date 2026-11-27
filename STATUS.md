@@ -113,6 +113,11 @@ in two attempts). The same tests pass locally with libmpv 0.37 + ffmpeg. The job
 - **Online chapters stuck loading (fixed)**: the page cache never returned a downloaded page, because its
   clean-up callback returned the request itself and the request waited on itself. Downloaded chapters were not
   affected. Reproduced on an Android 15 emulator and on desktop; regression test in `test/page_cache_test.dart`
+- **Brightness, much darker than the phone allows**: the player's left-side swipe and a Brightness slider in the
+  reader's settings (phones) go past the backlight minimum: the backlight stays at its lowest and a black layer takes
+  over, down to 1 % (a tenth of the picture still shows, never black). The reader's setting is remembered, "Use
+  phone's" hands brightness back, and leaving the reader restores the phone's own. Checked on an Android 15 emulator;
+  tests in `test/dimming_test.dart`
 - **Downloads**: queue with pause/resume, resumes at launch, offline reading, "delete read chapters"
 - **Upscaling**: GPU FSR 1.0 based upscale + sharpen, on by default, strength in reader settings
 - **Comfort pass (whole app)**: Esc / mouse back closes pages; hover rings and full-title tooltips on cards; right click
