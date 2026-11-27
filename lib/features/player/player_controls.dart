@@ -9,10 +9,12 @@ import 'package:screen_brightness/screen_brightness.dart';
 
 import '../../app/providers.dart';
 import '../../app/strings.dart';
+import '../../app/strings_ui.dart';
 import '../../app/theme.dart';
 import '../../core/models.dart';
 import '../../core/player/anime4k.dart';
 import '../../ui/widgets.dart';
+import 'lock_overlay.dart';
 import 'player_session.dart';
 import 'tap_zones.dart';
 import 'video_fit.dart';
@@ -47,6 +49,9 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
   Timer? _hudTimer;
 
   bool _visible = true;
+
+  /// Phones only: touches are ignored until Unlock is tapped.
+  bool _locked = false;
   bool _playing = false;
   bool _buffering = false;
   Duration _position = Duration.zero;
@@ -270,6 +275,9 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
   @override
   Widget build(BuildContext context) {
     final showUi = _visible || s.phase != SessionPhase.ready;
+    // A lock only makes sense while something is playing; errors and loading
+    // need their buttons.
+    if (_locked && s.phase != SessionPhase.ready) _locked = false;
     return Focus(
       focusNode: _focus,
       autofocus: true,
@@ -284,7 +292,12 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
         child: Stack(fit: StackFit.expand, children: [
           // Hit layer: phones skip by side on double tap; desktop double click
           // toggles fullscreen.
-          if (_mobile)
+          if (_locked)
+            LockOverlay(onUnlock: () {
+              setState(() => _locked = false);
+              _poke();
+            })
+          else if (_mobile)
             TapZones(
               onTap: _toggleVisible,
               onDoubleTap: _onDoubleTap,
@@ -300,9 +313,9 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
             ),
           // Overlay
           IgnorePointer(
-            ignoring: !showUi,
+            ignoring: !showUi || _locked,
             child: AnimatedOpacity(
-              opacity: showUi ? 1 : 0,
+              opacity: showUi && !_locked ? 1 : 0,
               duration: const Duration(milliseconds: 220),
               child: _overlay(context),
             ),
@@ -361,6 +374,18 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
                 ),
               ]),
             ),
+            if (_mobile)
+              IconButton(
+                tooltip: tr.lockControls,
+                icon: const Icon(Icons.lock_outline_rounded),
+                onPressed: () {
+                  _hide?.cancel();
+                  setState(() {
+                    _locked = true;
+                    _visible = false;
+                  });
+                },
+              ),
           ]),
         ),
       ),
@@ -480,14 +505,16 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
     return Tooltip(
       message: tip,
       child: InkWell(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(24),
         onTap: () {
           _poke();
           onTap();
         },
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-          child: Row(mainAxisSize: MainAxisSize.min, children: [
+        // At least 48 x 48 so each button is easy to hit on a phone.
+        child: Container(
+          constraints: const BoxConstraints(minWidth: kMinTouch, minHeight: kMinTouch),
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          child: Row(mainAxisSize: MainAxisSize.min, mainAxisAlignment: MainAxisAlignment.center, children: [
             Icon(icon, size: 24, color: active ? kAccent : Colors.white),
             if (label != null) ...[
               const SizedBox(width: 6),
@@ -534,7 +561,7 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
         Positioned(
           top: 8 + MediaQuery.paddingOf(context).top,
           left: 8,
-          child: IconButton(icon: const Icon(Icons.arrow_back_rounded), onPressed: widget.onClose),
+          child: IconButton(tooltip: tr.back, icon: const Icon(Icons.arrow_back_rounded), onPressed: widget.onClose),
         ),
         EmptyState(
           icon: Icons.error_outline_rounded,
