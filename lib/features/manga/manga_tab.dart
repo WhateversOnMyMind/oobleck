@@ -7,6 +7,7 @@ import '../../app/providers.dart';
 import '../../app/strings.dart';
 import '../../core/storage/app_db.dart';
 import '../../core/storage/manga_records.dart';
+import '../../ui/feedback.dart';
 import 'browse_view.dart';
 import 'library_view.dart';
 import 'manga_downloads_screen.dart';
@@ -95,18 +96,8 @@ class _MangaTabState extends ConsumerState<MangaTab> with SingleTickerProviderSt
             tooltip: tr.clearMangaHistory,
             icon: const Icon(Icons.delete_sweep_outlined),
             onPressed: () async {
-              final ok = await showDialog<bool>(
-                context: context,
-                builder: (context) => AlertDialog(
-                  title: Text(tr.clearMangaHistory),
-                  content: Text(tr.clearMangaHistoryBody),
-                  actions: [
-                    TextButton(onPressed: () => Navigator.pop(context, false), child: Text(tr.cancel)),
-                    FilledButton(onPressed: () => Navigator.pop(context, true), child: Text(tr.clear)),
-                  ],
-                ),
-              );
-              if (ok == true) await ref.read(dbProvider).clearMangaHistory();
+              final ok = await confirmAction(context, title: tr.clearMangaHistory, message: tr.clearMangaHistoryBody, confirmLabel: tr.clear);
+              if (ok) await ref.read(dbProvider).clearMangaHistory();
             },
           ),
         ],

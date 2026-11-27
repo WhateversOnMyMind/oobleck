@@ -7,6 +7,7 @@ import '../../app/providers.dart';
 import '../../app/strings.dart';
 import '../../core/storage/app_db.dart';
 import '../../core/storage/manga_records.dart';
+import '../../ui/feedback.dart';
 import '../../ui/widgets.dart';
 import '../reader/open_reader.dart';
 import 'manga_providers.dart';
@@ -39,18 +40,8 @@ class MangaDownloadsScreen extends ConsumerWidget {
               tooltip: tr.deleteRead,
               icon: const Icon(Icons.cleaning_services_outlined),
               onPressed: () async {
-                final ok = await showDialog<bool>(
-                  context: context,
-                  builder: (context) => AlertDialog(
-                    title: Text(tr.deleteRead),
-                    content: Text(tr.chapterCount(readDone.length)),
-                    actions: [
-                      TextButton(onPressed: () => Navigator.pop(context, false), child: Text(tr.cancel)),
-                      FilledButton(onPressed: () => Navigator.pop(context, true), child: Text(tr.delete)),
-                    ],
-                  ),
-                );
-                if (ok != true) return;
+                final ok = await confirmAction(context, title: tr.deleteRead, message: tr.chapterCount(readDone.length));
+                if (!ok) return;
                 for (final d in readDone) {
                   await dl.delete(d.key);
                 }

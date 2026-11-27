@@ -46,6 +46,7 @@ class ChapterTile extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         onLongPress: onLongPress,
+        onSecondaryTap: onLongPress,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 10, 8, 10),
           child: Row(children: [

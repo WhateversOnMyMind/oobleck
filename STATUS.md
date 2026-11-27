@@ -88,6 +88,31 @@ in two attempts). The same tests pass locally with libmpv 0.37 + ffmpeg. The job
 - OpenSubtitles with a real API key (the account-login requirement for downloads is unconfirmed)
 - Windows fullscreen toggling, and the custom controls' layout/gestures (no UI test drives them yet)
 
+## Manga reader and comfort pass (branch `manga-reader`)
+- **Manga tab** (11toon, checked live 2026-11-27): Library (categories, sort, filters, grid/compact/list, multi-select),
+  Updates (new chapters of library series, grouped by day), History (swipe to remove, resume), Browse (latest, popular,
+  completed, daily picks, 31 genres with multi-select, title and author search)
+- **Series page**: add to library with Undo, chapter sort/filter, multi-select (read/unread, bookmark, mark previous read,
+  download/delete), per-series reading mode, categories, open in browser, Continue / Start reading button
+- **Reader**: webtoon long strip that flows into the next chapter, vertical with gaps, left-to-right, right-to-left;
+  Automatic picks strip or pages from the first image. Tap zones (5 layouts, invert), pinch and double-tap zoom, page
+  slider, keyboard and volume keys, swipe past the end card for the next chapter, dimming, grayscale, keep screen on,
+  fullscreen, incognito, save page as image. Position saved per chapter
+- **Downloads**: queue with pause/resume, resumes at launch, offline reading, "delete read chapters"
+- **Upscaling**: GPU FSR 1.0 based upscale + sharpen, on by default, strength in reader settings
+- **Comfort pass (whole app)**: Esc / mouse back closes pages; hover rings and full-title tooltips on cards; right click
+  works like long press; Home rows drag with the mouse and keep their position; Search keeps its query, has recent
+  searches and `/` or Ctrl+F; show page with sticky Play bar on phones, sort and jump to episode, range selection
+  (long press then long press, or Shift+click), watched marks with Undo; Downloaded sort and storage summary; Settings
+  hints; player screen lock on phones and 48 dp bar buttons; destructive confirms are red and never confirmed by Enter
+- Fixed in review before merge: chapter read marks and new chapters not refreshing on screen, the reader throwing on exit
+  (wake lock and fullscreen stayed on), mouse wheel zooming the strip on Windows, a failed next chapter cascading
+  through the rest, downloads not resuming after restart, pause/delete during a download being overwritten,
+  half-written pages after a crash, stale Browse pages after a reload
+- **Not yet tried on a device**: the reader and upscaler on a real GPU (Android GLES could show the upscaled page
+  upside down; turning upscaling off is the workaround), the phone player lock. Unit and widget tests cover the
+  logic, storage, 11toon parsing (fixtures + live test) and the main screens
+
 ## How to test each feature
 - Manga: Manga tab > Browse, open a series, tap the heart (Library), tap Start reading. In the reader tap the
   middle for the menu (mode, upscale, settings), the edges to turn pages. Long strips continue into the next

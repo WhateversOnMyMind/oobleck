@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../../app/theme.dart';
+import '../../ui/hover.dart';
 
 /// Cover art: cached file first (offline), then network, then a placeholder.
 class MangaCover extends StatelessWidget {
@@ -13,10 +14,10 @@ class MangaCover extends StatelessWidget {
   final BoxFit fit;
 
   Widget get _placeholder => Container(
-        color: kSurface,
-        alignment: Alignment.center,
-        child: const Icon(Icons.menu_book_rounded, color: Colors.white24, size: 34),
-      );
+    color: kSurface,
+    alignment: Alignment.center,
+    child: const Icon(Icons.menu_book_rounded, color: Colors.white24, size: 34),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -74,74 +75,85 @@ class MangaCard extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final coverBox = ClipRRect(
       borderRadius: BorderRadius.circular(12),
-      child: Stack(fit: StackFit.expand, children: [
-        MangaCover(url: cover, localPath: coverPath, headers: headers),
-        if (dimmed) Container(color: Colors.black45),
-        if (compact)
-          const DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [Colors.transparent, Colors.transparent, Color(0xDD000000)],
-                stops: [0, 0.55, 1],
-              ),
-            ),
-          ),
-        if (badges.isNotEmpty)
-          Positioned(
-            top: 6,
-            left: 6,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(6),
-              child: Row(mainAxisSize: MainAxisSize.min, children: [
-                for (final (text, color) in badges)
-                  Container(
-                    color: color,
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    child: Text(text, style: t.labelSmall?.copyWith(color: Colors.white, fontWeight: FontWeight.w700)),
-                  ),
-              ]),
-            ),
-          ),
-        if (onContinue != null)
-          Positioned(
-            right: 6,
-            bottom: compact ? 40 : 6,
-            child: Material(
-              color: scheme.primary,
-              shape: const CircleBorder(),
-              child: InkWell(
-                customBorder: const CircleBorder(),
-                onTap: onContinue,
-                child: const Padding(
-                  padding: EdgeInsets.all(7),
-                  child: Icon(Icons.play_arrow_rounded, size: 22, color: Colors.white),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          MangaCover(url: cover, localPath: coverPath, headers: headers),
+          if (dimmed) Container(color: Colors.black45),
+          if (compact)
+            const DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Colors.transparent, Colors.transparent, Color(0xDD000000)],
+                  stops: [0, 0.55, 1],
                 ),
               ),
             ),
-          ),
-        if (compact)
-          Positioned(
-            left: 8,
-            right: 8,
-            bottom: 8,
-            child: Text(title,
+          if (badges.isNotEmpty)
+            Positioned(
+              top: 6,
+              left: 6,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    for (final (text, color) in badges)
+                      Container(
+                        color: color,
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        child: Text(
+                          text,
+                          style: t.labelSmall?.copyWith(color: Colors.white, fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          if (onContinue != null)
+            Positioned(
+              right: 6,
+              bottom: compact ? 40 : 6,
+              child: Material(
+                color: scheme.primary,
+                shape: const CircleBorder(),
+                child: InkWell(
+                  customBorder: const CircleBorder(),
+                  onTap: onContinue,
+                  child: const Padding(
+                    padding: EdgeInsets.all(7),
+                    child: Icon(Icons.play_arrow_rounded, size: 22, color: Colors.white),
+                  ),
+                ),
+              ),
+            ),
+          if (compact)
+            Positioned(
+              left: 8,
+              right: 8,
+              bottom: 8,
+              child: Text(
+                title,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: t.bodySmall?.copyWith(fontWeight: FontWeight.w700, height: 1.2, color: Colors.white)),
-          ),
-        if (selected)
-          Container(
-            decoration: BoxDecoration(
-              color: scheme.primary.withValues(alpha: 0.35),
-              border: Border.all(color: scheme.primary, width: 3),
-              borderRadius: BorderRadius.circular(12),
+                style: t.bodySmall?.copyWith(fontWeight: FontWeight.w700, height: 1.2, color: Colors.white),
+              ),
             ),
-            alignment: Alignment.center,
-            child: const Icon(Icons.check_circle_rounded, size: 36, color: Colors.white),
-          ),
-      ]),
+          if (selected)
+            Container(
+              decoration: BoxDecoration(
+                color: scheme.primary.withValues(alpha: 0.35),
+                border: Border.all(color: scheme.primary, width: 3),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              alignment: Alignment.center,
+              child: const Icon(Icons.check_circle_rounded, size: 36, color: Colors.white),
+            ),
+        ],
+      ),
     );
     return Semantics(
       button: true,
@@ -150,18 +162,51 @@ class MangaCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         onTap: onTap,
         onLongPress: onLongPress,
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          AspectRatio(aspectRatio: 0.7, child: coverBox),
-          if (!compact) ...[
-            const SizedBox(height: 6),
-            Text(title, maxLines: 2, overflow: TextOverflow.ellipsis, style: t.bodyMedium?.copyWith(fontWeight: FontWeight.w600, height: 1.2)),
-            if (subtitle != null && subtitle!.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 2),
-                child: Text(subtitle!, maxLines: 1, overflow: TextOverflow.ellipsis, style: t.bodySmall?.copyWith(color: Colors.white60)),
+        // Right click does what a long press does on a phone.
+        onSecondaryTap: onLongPress,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            AspectRatio(
+              aspectRatio: 0.7,
+              // Mouse hover rings the cover; the full title shows as a tooltip.
+              child: HoverBuilder(
+                builder: (context, hovered) => Tooltip(
+                  message: title,
+                  waitDuration: const Duration(milliseconds: 700),
+                  triggerMode: TooltipTriggerMode.manual,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 120),
+                    foregroundDecoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: hovered && !selected ? kAccent : Colors.transparent, width: 2),
+                    ),
+                    child: coverBox,
+                  ),
+                ),
               ),
+            ),
+            if (!compact) ...[
+              const SizedBox(height: 6),
+              Text(
+                title,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: t.bodyMedium?.copyWith(fontWeight: FontWeight.w600, height: 1.2),
+              ),
+              if (subtitle != null && subtitle!.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Text(
+                    subtitle!,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: t.bodySmall?.copyWith(color: Colors.white60),
+                  ),
+                ),
+            ],
           ],
-        ]),
+        ),
       ),
     );
   }
@@ -180,8 +225,14 @@ SliverGridDelegate coverGridDelegate(double width, {bool compact = false}) {
 }
 
 /// "3 h ago", "Yesterday", "2026-11-03".
-String relativeTime(DateTime t, DateTime now, {required String Function(int) minutes, required String Function(int) hours,
-    required String yesterday, required String Function(int) days}) {
+String relativeTime(
+  DateTime t,
+  DateTime now, {
+  required String Function(int) minutes,
+  required String Function(int) hours,
+  required String yesterday,
+  required String Function(int) days,
+}) {
   final d = now.difference(t);
   if (d.inMinutes < 1) return minutes(1);
   if (d.inMinutes < 60) return minutes(d.inMinutes);
