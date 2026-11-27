@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,6 +8,8 @@ import '../../app/strings.dart';
 import '../../core/storage/app_db.dart';
 import '../../ui/dimming.dart';
 import '../manga/manga_strings.dart';
+import '../../ui/layout.dart';
+import '../../ui/feedback.dart';
 import 'reader_controller.dart';
 import 'reader_settings.dart';
 
@@ -104,7 +105,7 @@ class ReaderOverlay extends ConsumerWidget {
                   value: ref.watch(readerSettingsProvider).upscale,
                   onChanged: (v) => ref.read(readerSettingsProvider.notifier).set('upscale', v),
                 ),
-                if (!(Platform.isAndroid || Platform.isIOS))
+                if (!isMobile)
                   Tooltip(
                     message: tr.readerHelpDesktop,
                     child: const Padding(padding: EdgeInsets.all(12), child: Icon(Icons.keyboard_rounded, color: Colors.white54)),
@@ -209,16 +210,8 @@ class _QuickToggle extends StatelessWidget {
 }
 
 /// The reader settings sheet (also reachable from Settings).
-Future<void> showReaderSettings(BuildContext context, [ReaderController? c]) => showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      builder: (context) => DraggableScrollableSheet(
-        expand: false,
-        initialChildSize: 0.6,
-        maxChildSize: 0.92,
-        builder: (context, scroll) => ReaderSettingsList(controller: scroll, reader: c),
-      ),
-    );
+Future<void> showReaderSettings(BuildContext context, [ReaderController? c]) =>
+    showDraggableSheet(context, (scroll) => ReaderSettingsList(controller: scroll, reader: c));
 
 /// All reader options. With [reader], the mode choice applies to that series.
 class ReaderSettingsList extends ConsumerWidget {
@@ -232,10 +225,15 @@ class ReaderSettingsList extends ConsumerWidget {
     final tr = Strings.of(context);
     final s = ref.watch(readerSettingsProvider);
     final n = ref.read(readerSettingsProvider.notifier);
-    final mobile = Platform.isAndroid || Platform.isIOS;
-    Widget header(String text) => Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-          child: Text(text, style: Theme.of(context).textTheme.labelLarge?.copyWith(color: Theme.of(context).colorScheme.primary)),
+    Widget percentSlider(String title, String key, double value, {double max = 1, required int divisions}) => ListTile(
+          title: Text(title),
+          subtitle: Slider(
+            value: value,
+            max: max,
+            divisions: divisions,
+            label: '${(value * 100).round()}%',
+            onChanged: (v) => n.set(key, v),
+          ),
         );
     Widget choice<T extends Enum>(String title, T value, List<T> values, String Function(String) label, ValueChanged<T> onChanged) =>
         ListTile(
@@ -249,13 +247,13 @@ class ReaderSettingsList extends ConsumerWidget {
             items: [for (final v in values) DropdownMenuItem(value: v, child: Text(label(v.name)))],
           ),
         );
-    final seriesMode = reader == null ? null : ReaderMode.parse(reader!.manga.readerMode, ReaderMode.auto);
+    final seriesMode = reader == null ? null : ReaderMode.parse(reader!.manga.readerMode);
     return ListView(
       controller: controller,
       shrinkWrap: shrinkWrap,
       physics: shrinkWrap ? const NeverScrollableScrollPhysics() : null,
       children: [
-        header(tr.readingMode),
+        SheetHeader(tr.readingMode),
         if (reader != null)
           choice<ReaderMode>(tr.readerModeForSeries, seriesMode!, ReaderMode.values, tr.readerModeLabel, (m) => unawaited(reader!.setMode(m)))
         else
@@ -269,45 +267,18 @@ class ReaderSettingsList extends ConsumerWidget {
         choice<TapLayout>(tr.tapZones, s.tapLayout, TapLayout.values, tr.tapLayoutLabel, (v) => n.set('tapLayout', v)),
         SwitchListTile(title: Text(tr.invertTaps), value: s.invertTaps, onChanged: (v) => n.set('invertTaps', v)),
         SwitchListTile(title: Text(tr.autoNextChapter), value: s.autoNextChapter, onChanged: (v) => n.set('autoNextChapter', v)),
-        ListTile(
-          title: Text(tr.webtoonPadding),
-          subtitle: Slider(
-            value: s.webtoonPadding,
-            max: 0.3,
-            divisions: 6,
-            label: '${(s.webtoonPadding * 100).round()}%',
-            onChanged: (v) => n.set('webtoonPadding', v),
-          ),
-        ),
-        header(tr.display),
+        percentSlider(tr.webtoonPadding, 'webtoonPadding', s.webtoonPadding, max: 0.3, divisions: 6),
+        SheetHeader(tr.display),
         SwitchListTile(
           title: Text(tr.upscale),
           subtitle: Text(tr.upscaleHint),
           value: s.upscale,
           onChanged: (v) => n.set('upscale', v),
         ),
-        if (s.upscale)
-          ListTile(
-            title: Text(tr.sharpness),
-            subtitle: Slider(
-              value: s.sharpness,
-              divisions: 10,
-              label: '${(s.sharpness * 100).round()}%',
-              onChanged: (v) => n.set('sharpness', v),
-            ),
-          ),
+        if (s.upscale) percentSlider(tr.sharpness, 'sharpness', s.sharpness, divisions: 10),
         choice<ReaderBackground>(tr.background, s.background, ReaderBackground.values, tr.backgroundLabel, (v) => n.set('background', v)),
-        ListTile(
-          title: Text(tr.dimPages),
-          subtitle: Slider(
-            value: s.dim,
-            max: 0.8,
-            divisions: 8,
-            label: '${(s.dim * 100).round()}%',
-            onChanged: (v) => n.set('dim', v),
-          ),
-        ),
-        if (mobile)
+        percentSlider(tr.dimPages, 'dim', s.dim, max: 0.8, divisions: 8),
+        if (isMobile)
           ListTile(
             title: Row(children: [
               Expanded(child: Text(tr.brightness)),
@@ -331,9 +302,9 @@ class ReaderSettingsList extends ConsumerWidget {
         SwitchListTile(title: Text(tr.grayscale), value: s.grayscale, onChanged: (v) => n.set('grayscale', v)),
         SwitchListTile(title: Text(tr.showPageNumber), value: s.showPageNumber, onChanged: (v) => n.set('showPageNumber', v)),
         SwitchListTile(title: Text(tr.fullscreenReader), value: s.fullscreen, onChanged: (v) => n.set('fullscreen', v)),
-        header(tr.more),
+        SheetHeader(tr.more),
         SwitchListTile(title: Text(tr.keepScreenOn), value: s.keepScreenOn, onChanged: (v) => n.set('keepScreenOn', v)),
-        if (mobile) SwitchListTile(title: Text(tr.volumeKeys), value: s.volumeKeys, onChanged: (v) => n.set('volumeKeys', v)),
+        if (isMobile) SwitchListTile(title: Text(tr.volumeKeys), value: s.volumeKeys, onChanged: (v) => n.set('volumeKeys', v)),
         SwitchListTile(title: Text(tr.incognito), value: s.incognito, onChanged: (v) => n.set('incognito', v)),
         const SizedBox(height: 24),
       ],

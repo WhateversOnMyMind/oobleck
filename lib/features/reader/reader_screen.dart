@@ -14,6 +14,10 @@ import '../../ui/dimming.dart';
 import '../../ui/widgets.dart';
 import '../manga/manga_providers.dart';
 import '../manga/manga_strings.dart';
+import '../../core/downloads/download_manager.dart';
+import '../../core/manga/image_header.dart';
+import '../../ui/feedback.dart';
+import '../../ui/layout.dart';
 import 'paged_reader.dart';
 import 'reader_controller.dart';
 import 'reader_overlay.dart';
@@ -40,7 +44,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   late ReaderSettings _settings = ref.read(readerSettingsProvider);
   static const _desktopWindow = MethodChannel('com.alexmercerind/media_kit_video');
 
-  bool get _mobile => Platform.isAndroid || Platform.isIOS;
+  bool get _mobile => isMobile;
 
   @override
   void initState() {
@@ -185,27 +189,27 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     );
     if (save != true) return;
     final rc = c.current;
-    final name = '${c.manga.title} ${rc?.chapter.title ?? ''} p${c.page + 1}.${_ext(bytes)}'.replaceAll(RegExp(r'[<>:"/\\|?*]'), '');
+    final name = DownloadManager.sanitize('${c.manga.title} ${rc?.chapter.title ?? ''} p${c.page + 1}.${_ext(bytes)}');
     try {
       // The picker writes the bytes itself (a content URI on phones).
       final saved = await FilePicker.saveFile(fileName: name, bytes: bytes, mimeType: 'image/${_ext(bytes)}');
       if (saved != null && saved.scheme == 'file' && !File.fromUri(saved).existsSync()) {
         await File.fromUri(saved).writeAsBytes(bytes);
       }
-      if (saved != null && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr.pageSaved)));
-      }
+      if (saved != null && mounted) showAppSnackBar(context, tr.pageSaved);
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+      if (mounted) showAppSnackBar(context, '$e');
     }
   }
 
-  static String _ext(Uint8List b) {
-    if (b.length > 4 && b[0] == 0x89 && b[1] == 0x50) return 'png';
-    if (b.length > 12 && b[8] == 0x57 && b[9] == 0x45) return 'webp';
-    if (b.length > 3 && b[0] == 0x47 && b[1] == 0x49) return 'gif';
-    return 'jpg';
-  }
+  static String _ext(Uint8List b) => switch (sniffImage(b)) {
+        ImageKind.png => 'png',
+        ImageKind.webp => 'webp',
+        ImageKind.gif => 'gif',
+        ImageKind.avif => 'avif',
+        ImageKind.bmp => 'bmp',
+        ImageKind.jpeg || null => 'jpg',
+      };
 
   @override
   Widget build(BuildContext context) {

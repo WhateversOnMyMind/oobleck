@@ -10,6 +10,7 @@ import '../../ui/layout.dart';
 import 'reader_controller.dart';
 import 'reader_page.dart';
 import 'reader_settings.dart';
+import 'chapter_end.dart';
 
 /// An entry of the strip: a page, or the gap card between two chapters.
 class _Item {
@@ -244,40 +245,35 @@ class _ScrollReaderState extends State<ScrollReader> {
     final seg = c.segments[segment];
     final nextLoaded = segment + 1 < c.segments.length ? c.segments[segment + 1] : null;
     final next = nextLoaded?.chapter ?? (segment == c.segments.length - 1 ? c.nextChapter : null);
-    final t = Theme.of(context).textTheme;
-    final dark = widget.settings.background != ReaderBackground.white;
-    final fg = dark ? Colors.white : Colors.black87;
+    final bg = widget.settings.background;
+    // Below "Up next": a button, or the next chapter's loading state when it
+    // follows on automatically.
+    Widget? action() {
+      if (next == null) return null;
+      if (nextLoaded == null || !widget.settings.autoNextChapter) {
+        return FilledButton.icon(
+          onPressed: () => unawaited(c.goTo(next)),
+          icon: const Icon(Icons.skip_next_rounded),
+          label: Text(tr.nextChapter),
+        );
+      }
+      if (nextLoaded.loading) return const SizedBox(width: 28, height: 28, child: CircularProgressIndicator(strokeWidth: 2.5));
+      if (nextLoaded.error != null) {
+        return FilledButton.tonalIcon(
+          onPressed: () => unawaited(c.goTo(next)),
+          icon: const Icon(Icons.refresh_rounded),
+          label: Text(tr.retry),
+        );
+      }
+      return Icon(Icons.keyboard_double_arrow_down_rounded, color: bg.foreground.withValues(alpha: 0.5), size: 32);
+    }
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 24),
       child: Center(
         child: ConstrainedBox(
           constraints: BoxConstraints(maxWidth: width.clamp(280, 560)),
-          child: Column(children: [
-            Text(tr.finishedChapter(seg.chapter.title), style: t.titleMedium?.copyWith(color: fg.withValues(alpha: 0.7))),
-            const SizedBox(height: 10),
-            if (next == null)
-              Text(tr.noNextChapter, style: t.titleLarge?.copyWith(color: fg, fontWeight: FontWeight.w700))
-            else ...[
-              Text(tr.upNext(next.title), style: t.titleLarge?.copyWith(color: fg, fontWeight: FontWeight.w700), textAlign: TextAlign.center),
-              const SizedBox(height: 16),
-              if (nextLoaded == null || !widget.settings.autoNextChapter)
-                FilledButton.icon(
-                  onPressed: () => unawaited(c.goTo(next)),
-                  icon: const Icon(Icons.skip_next_rounded),
-                  label: Text(tr.nextChapter),
-                )
-              else if (nextLoaded.loading)
-                const SizedBox(width: 28, height: 28, child: CircularProgressIndicator(strokeWidth: 2.5))
-              else if (nextLoaded.error != null)
-                FilledButton.tonalIcon(
-                  onPressed: () => unawaited(c.goTo(next)),
-                  icon: const Icon(Icons.refresh_rounded),
-                  label: Text(tr.retry),
-                )
-              else
-                Icon(Icons.keyboard_double_arrow_down_rounded, color: fg.withValues(alpha: 0.5), size: 32),
-            ],
-          ]),
+          child: ChapterEndText(finished: seg.chapter, next: next, background: bg, action: action()),
         ),
       ),
     );

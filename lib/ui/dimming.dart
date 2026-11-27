@@ -1,8 +1,9 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:screen_brightness/screen_brightness.dart';
+
+import 'layout.dart';
 
 /// One brightness scale for the player and the reader, from [darkest] up to 1.
 ///
@@ -14,7 +15,7 @@ abstract final class Dimming {
   static const double darkest = -0.9;
 
   /// Only phones change the backlight; desktops keep their own.
-  static bool get supported => Platform.isAndroid || Platform.isIOS;
+  static bool get supported => isMobile;
 
   static double clamp(double level) => level.clamp(darkest, 1.0);
 

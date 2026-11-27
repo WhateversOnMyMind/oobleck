@@ -9,6 +9,7 @@ import '../../ui/layout.dart';
 import 'reader_controller.dart';
 import 'reader_page.dart';
 import 'reader_settings.dart';
+import 'chapter_end.dart';
 
 /// Book-style reader: one page per screen, turned by swiping or tapping.
 /// The page after the last one is a chapter end card; going on from there
@@ -209,35 +210,24 @@ class _PagedReaderState extends State<PagedReader> {
   }
 
   Widget _endCard(Strings tr) {
-    final t = Theme.of(context).textTheme;
     final next = c.nextChapter;
-    final fg = widget.settings.background == ReaderBackground.white ? Colors.black87 : Colors.white;
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: () => c.toggleMenu(),
       child: Center(
         child: Padding(
           padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(tr.finishedChapter(c.current!.chapter.title), style: t.titleMedium?.copyWith(color: fg.withValues(alpha: 0.7))),
-              const SizedBox(height: 10),
-              if (next == null)
-                Text(
-                  tr.noNextChapter,
-                  style: t.titleLarge?.copyWith(color: fg, fontWeight: FontWeight.w700),
-                )
-              else ...[
-                Text(
-                  tr.upNext(next.title),
-                  textAlign: TextAlign.center,
-                  style: t.titleLarge?.copyWith(color: fg, fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(height: 16),
-                FilledButton.icon(onPressed: () => unawaited(c.goTo(next)), icon: const Icon(Icons.skip_next_rounded), label: Text(tr.nextChapter)),
-              ],
-            ],
+          child: ChapterEndText(
+            finished: c.current!.chapter,
+            next: next,
+            background: widget.settings.background,
+            action: next == null
+                ? null
+                : FilledButton.icon(
+                    onPressed: () => unawaited(c.goTo(next)),
+                    icon: const Icon(Icons.skip_next_rounded),
+                    label: Text(tr.nextChapter),
+                  ),
           ),
         ),
       ),

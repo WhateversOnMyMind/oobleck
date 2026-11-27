@@ -11,11 +11,9 @@ extension MangaStrings on Strings {
   String get mangaBrowse => pick('Browse', '탐색');
   String get mangaDownloads => pick('Downloads', '다운로드');
   String get searchManga => pick('Search manga and webtoons', '만화, 웹툰 검색');
-  String get searchMangaHint => pick('Title or author', '제목 또는 작가');
   String get allGenres => pick('All genres', '전체 장르');
   String get genres => pick('Genres', '장르');
   String get loadMore => pick('Load more', '더 보기');
-  String get noResults => pick('Nothing found', '검색 결과가 없어요');
   String get noResultsHint => pick('Try a shorter title or the author name.', '제목을 짧게 하거나 작가 이름으로 찾아보세요.');
 
   // ---- library ---------------------------------------------------------------------
@@ -24,7 +22,6 @@ extension MangaStrings on Strings {
       pick('Find something in Browse and tap the heart to keep it here.', '탐색에서 작품을 찾아 하트를 누르면 여기에 모여요.');
   String get goBrowse => pick('Browse', '탐색하기');
   String get checkForUpdates => pick('Check for new chapters', '새 화 확인');
-  String checkingUpdates(int done, int total) => pick('Checking $done / $total…', '확인 중 $done / $total…');
   String newChaptersFound(int n) =>
       n == 0 ? pick('No new chapters', '새 화가 없어요') : pick('$n new ${n == 1 ? 'chapter' : 'chapters'}', '새 화 $n개');
   String get searchLibrary => pick('Search library', '서재 검색');
@@ -47,16 +44,13 @@ extension MangaStrings on Strings {
   String get showContinueButton => pick('Continue reading button', '이어 읽기 버튼');
   String get categories => pick('Categories', '카테고리');
   String get allCategory => pick('All', '전체');
-  String get editCategories => pick('Edit categories', '카테고리 편집');
   String get newCategory => pick('New category', '새 카테고리');
-  String get categoryName => pick('Name', '이름');
   String get setCategories => pick('Set categories', '카테고리 지정');
   String get rename => pick('Rename', '이름 바꾸기');
   String get removeFromLibrary => pick('Remove from library', '서재에서 빼기');
   String removedFromLibrary(String t) => pick('Removed “$t”', '“$t”을(를) 뺐어요');
   String addedToLibrary(String t) => pick('Added “$t” to your library', '“$t”을(를) 서재에 담았어요');
   String get undo => pick('Undo', '되돌리기');
-  String selectedCount(int n) => pick('$n selected', '$n개 선택');
   String unreadCount(int n) => pick('$n unread', '안 읽음 $n');
 
   // ---- updates & history -----------------------------------------------------------
@@ -73,7 +67,7 @@ extension MangaStrings on Strings {
   String get clearMangaHistoryBody =>
       pick('Read marks and page positions are kept.', '읽음 표시와 읽던 위치는 그대로예요.');
   String get removeFromHistory => pick('Remove from history', '기록에서 삭제');
-  String get resume => pick('Resume', '이어 읽기');
+  String get continueReading => pick('Continue reading', '이어 읽기');
   String agoMinutes(int n) => pick('$n min ago', '$n분 전');
   String agoHours(int n) => pick('$n h ago', '$n시간 전');
 
@@ -107,16 +101,12 @@ extension MangaStrings on Strings {
   String get markPreviousRead => pick('Mark previous as read', '이전 화 모두 읽음');
   String get bookmark => pick('Bookmark', '북마크');
   String get removeBookmark => pick('Remove bookmark', '북마크 해제');
-  String get download => pick('Download', '다운로드');
   String get deleteDownload => pick('Delete download', '다운로드 삭제');
   String get downloadNext5 => pick('Next 5 unread', '안 읽은 다음 5화');
   String get downloadUnread => pick('All unread', '안 읽은 화 모두');
   String get downloadAll => pick('All chapters', '전체 화');
   String get selectAll => pick('Select all', '모두 선택');
-  String get jumpToChapter => pick('Go to chapter', '화로 이동');
   String pageOf(int page, int total) => pick('Page $page of $total', '$total쪽 중 $page쪽');
-  String pagesLeft(int n) => pick('$n pages left', '$n쪽 남음');
-  String get seriesGone => pick('This series could not be loaded.', '작품을 불러오지 못했어요.');
   String get showingSaved => pick('Offline: showing the saved copy', '오프라인: 저장된 정보를 보여 드려요');
 
   // ---- downloads -------------------------------------------------------------------
@@ -124,10 +114,7 @@ extension MangaStrings on Strings {
   String get downloadsEmptyHint =>
       pick('Use the download button on a series to read offline.', '작품 화면의 다운로드 버튼으로 오프라인에서도 읽을 수 있어요.');
   String downloadQueued(int n) => pick('$n ${n == 1 ? 'chapter' : 'chapters'} queued', '$n화 대기열에 추가');
-  String get pause => pick('Pause', '일시정지');
   String get resumeDownload => pick('Resume', '재개');
-  String get failed => pick('Failed', '실패');
-  String get waiting => pick('Waiting', '대기 중');
   String get deleteRead => pick('Delete read chapters', '읽은 화 삭제');
 
   // ---- reader --------------------------------------------------------------------------
@@ -186,11 +173,9 @@ extension MangaStrings on Strings {
   String get grayscale => pick('Grayscale', '흑백');
   String get autoNextChapter => pick('Continue into the next chapter', '다음 화로 이어서 보기');
   String get incognito => pick('Incognito (no history)', '시크릿 모드 (기록 안 남김)');
-  String get dualPage => pick('Two pages side by side in landscape', '가로 화면에서 두 쪽 보기');
   String get previousChapter => pick('Previous chapter', '이전 화');
   String get nextChapter => pick('Next chapter', '다음 화');
   String get noNextChapter => pick('This is the latest chapter', '마지막 화예요');
-  String get noPreviousChapter => pick('This is the first chapter', '첫 화예요');
   String finishedChapter(String c) => pick('Finished $c', '$c 끝');
   String upNext(String c) => pick('Next: $c', '다음: $c');
   String get pageFailed => pick('This page did not load', '이 쪽을 불러오지 못했어요');
@@ -208,7 +193,6 @@ extension MangaStrings on Strings {
       'Found automatically when the site moves. Type one only to force a specific address.',
       '사이트가 옮겨 가면 자동으로 찾아요. 특정 주소를 쓰고 싶을 때만 직접 입력하세요.');
   String get findSiteAddress => pick('Find current address', '현재 주소 찾기');
-  String get findingSiteAddress => pick('Looking for the current address…', '현재 주소를 찾는 중…');
   String siteAddressFound(String url) => pick('Switched to $url', '$url 주소로 바꿨어요');
   String get siteAddressUnchanged => pick('The current address already works', '지금 주소가 이미 작동해요');
   String get siteAddressNotFound =>
@@ -217,5 +201,4 @@ extension MangaStrings on Strings {
   String get siteAddressAuto => pick('found automatically', '자동으로 찾음');
   String get pageCache => pick('Page cache', '이미지 캐시');
   String pageCacheSize(String size) => pick('$size used', '$size 사용 중');
-  String get clearPageCache => pick('Clear page cache', '이미지 캐시 지우기');
 }

@@ -51,6 +51,31 @@ void showAppSnackBar(BuildContext context, String message, {VoidCallback? onUndo
     ));
 }
 
+/// Settings-style bottom sheet: opens at 60 % height and drags up to nearly full.
+Future<void> showDraggableSheet(BuildContext context, Widget Function(ScrollController scroll) builder) =>
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.6,
+        maxChildSize: 0.92,
+        builder: (context, scroll) => builder(scroll),
+      ),
+    );
+
+/// Section title inside a bottom sheet.
+class SheetHeader extends StatelessWidget {
+  const SheetHeader(this.text, {super.key});
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+        child: Text(text, style: Theme.of(context).textTheme.labelLarge?.copyWith(color: Theme.of(context).colorScheme.primary)),
+      );
+}
+
 /// Light tick for long presses and selection changes (no-op on desktop).
 void hapticTick() => HapticFeedback.selectionClick();
 

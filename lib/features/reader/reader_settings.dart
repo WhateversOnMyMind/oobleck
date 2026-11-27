@@ -21,9 +21,8 @@ enum ReaderMode {
   vertical;
 
   bool get isPaged => this == ltr || this == rtl || this == vertical;
-  bool get isScroll => this == webtoon || this == continuous;
 
-  static ReaderMode parse(String? s, [ReaderMode fallback = auto]) => values.where((v) => v.name == s).firstOrNull ?? fallback;
+  static ReaderMode parse(String? s) => values.asNameMap()[s] ?? auto;
 
   IconData get icon => switch (this) {
         auto => Icons.auto_awesome_motion_rounded,
@@ -42,7 +41,7 @@ enum PageScale {
   fitHeight,
   original;
 
-  static PageScale parse(String? s) => values.where((v) => v.name == s).firstOrNull ?? fitScreen;
+  static PageScale parse(String? s) => values.asNameMap()[s] ?? fitScreen;
 
   BoxFit get boxFit => switch (this) {
         fitScreen => BoxFit.contain,
@@ -60,7 +59,7 @@ enum TapLayout {
   leftRight,
   off;
 
-  static TapLayout parse(String? s) => values.where((v) => v.name == s).firstOrNull ?? lShape;
+  static TapLayout parse(String? s) => values.asNameMap()[s] ?? lShape;
 }
 
 enum ReaderBackground {
@@ -68,7 +67,10 @@ enum ReaderBackground {
   gray,
   white;
 
-  static ReaderBackground parse(String? s) => values.where((v) => v.name == s).firstOrNull ?? black;
+  static ReaderBackground parse(String? s) => values.asNameMap()[s] ?? black;
+
+  /// Text and icon colour that reads on this background.
+  Color get foreground => this == white ? Colors.black87 : Colors.white;
 
   Color get color => switch (this) {
         black => Colors.black,
@@ -97,7 +99,6 @@ class ReaderSettings {
     this.grayscale = false,
     this.autoNextChapter = true,
     this.incognito = false,
-    this.dualPage = false,
     this.preload = 4,
   });
 
@@ -126,7 +127,6 @@ class ReaderSettings {
   final bool grayscale;
   final bool autoNextChapter;
   final bool incognito;
-  final bool dualPage;
 
   /// Pages decoded ahead of the current one.
   final int preload;
@@ -154,7 +154,6 @@ class ReaderSettings {
       grayscale: g('grayscale', false),
       autoNextChapter: g('autoNextChapter', true),
       incognito: g('incognito', false),
-      dualPage: g('dualPage', false),
       preload: g('preload', 4),
     );
   }

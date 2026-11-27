@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -14,6 +13,7 @@ import '../../core/models.dart';
 import '../../core/player/anime4k.dart';
 import '../../ui/dimming.dart';
 import '../../ui/widgets.dart';
+import '../../ui/layout.dart';
 import 'lock_overlay.dart';
 import 'player_session.dart';
 import 'tap_zones.dart';
@@ -66,7 +66,7 @@ class _PlayerControlsState extends ConsumerState<PlayerControls> {
   /// Brightness below the backlight's minimum (see [Dimming]), 0 when unused.
   double _shadeLevel = 0;
 
-  bool get _mobile => Platform.isAndroid || Platform.isIOS;
+  bool get _mobile => isMobile;
   bool get _wide => MediaQuery.sizeOf(context).width >= 700;
 
   @override

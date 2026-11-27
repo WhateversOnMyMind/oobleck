@@ -228,7 +228,7 @@ class LibraryViewState extends ConsumerState<LibraryView> {
       subtitle: Text(e.unread > 0 ? tr.unreadCount(e.unread) : tr.chapterCount(e.total)),
       trailing: e.next != null && prefs.continueButton && !selecting
           ? IconButton(
-              tooltip: tr.resume,
+              tooltip: tr.continueReading,
               icon: const Icon(Icons.play_circle_fill_rounded),
               onPressed: () => openReader(context, mangaKey: e.manga.key, chapterId: e.next!.id),
             )
@@ -295,16 +295,8 @@ class LibraryViewState extends ConsumerState<LibraryView> {
 }
 
 /// Sort / filter / display sheet for the library.
-Future<void> showLibraryOptions(BuildContext context) => showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      builder: (context) => DraggableScrollableSheet(
-        expand: false,
-        initialChildSize: 0.6,
-        maxChildSize: 0.9,
-        builder: (context, scroll) => _LibraryOptions(scroll: scroll),
-      ),
-    );
+Future<void> showLibraryOptions(BuildContext context) =>
+    showDraggableSheet(context, (scroll) => _LibraryOptions(scroll: scroll));
 
 class _LibraryOptions extends ConsumerWidget {
   const _LibraryOptions({required this.scroll});
@@ -316,10 +308,6 @@ class _LibraryOptions extends ConsumerWidget {
     final p = ref.watch(libraryPrefsProvider);
     final n = ref.read(libraryPrefsProvider.notifier);
     final scheme = Theme.of(context).colorScheme;
-    Widget header(String t) => Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-          child: Text(t, style: Theme.of(context).textTheme.labelLarge?.copyWith(color: scheme.primary)),
-        );
     final sorts = [
       (LibrarySort.lastRead, tr.sortLastRead),
       (LibrarySort.lastUpdate, tr.sortLastUpdate),
@@ -328,12 +316,12 @@ class _LibraryOptions extends ConsumerWidget {
       (LibrarySort.added, tr.sortAdded),
     ];
     return ListView(controller: scroll, children: [
-      header(tr.filter),
+      SheetHeader(tr.filter),
       CheckboxListTile(title: Text(tr.filterUnread), value: p.filter.unread, onChanged: (v) => n.set('fUnread', v ?? false)),
       CheckboxListTile(title: Text(tr.filterStarted), value: p.filter.started, onChanged: (v) => n.set('fStarted', v ?? false)),
       CheckboxListTile(title: Text(tr.filterDownloaded), value: p.filter.downloaded, onChanged: (v) => n.set('fDownloaded', v ?? false)),
       CheckboxListTile(title: Text(tr.filterCompleted), value: p.filter.completed, onChanged: (v) => n.set('fCompleted', v ?? false)),
-      header(tr.sortBy),
+      SheetHeader(tr.sortBy),
       for (final (s, label) in sorts)
         ListTile(
           title: Text(label),
@@ -350,7 +338,7 @@ class _LibraryOptions extends ConsumerWidget {
             }
           },
         ),
-      header(tr.display),
+      SheetHeader(tr.display),
       Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16),
         child: SegmentedButton<String>(

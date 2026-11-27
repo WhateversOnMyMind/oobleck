@@ -165,7 +165,7 @@ class ReaderController extends ChangeNotifier {
   /// Picks the layout: the series' own choice, then the app default; "auto"
   /// looks at the first page (tall strips scroll, book pages turn).
   Future<ReaderMode> _decideMode(ReaderChapter rc) async {
-    final own = ReaderMode.parse(manga.readerMode, ReaderMode.auto);
+    final own = ReaderMode.parse(manga.readerMode);
     final chosen = own != ReaderMode.auto ? own : settings().mode;
     if (chosen != ReaderMode.auto) return chosen;
     if (rc.pages.isEmpty) return ReaderMode.webtoon;
