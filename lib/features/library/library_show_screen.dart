@@ -3,13 +3,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/providers.dart';
 import '../../app/strings.dart';
+import '../../app/strings_ui.dart';
 import '../../app/theme.dart';
 import '../../core/downloads/download_manager.dart';
 import '../../core/models.dart';
 import '../../core/storage/records.dart';
+import '../../ui/feedback.dart';
+import '../../ui/layout.dart';
+import '../../ui/poster_app_bar.dart';
 import '../../ui/widgets.dart';
 import '../player/open_player.dart';
 import '../player/play_request.dart';
+import '../show/progress_actions.dart';
 
 /// Episodes of one downloaded show. One tap plays in the in-app player.
 class LibraryShowScreen extends ConsumerWidget {
@@ -33,49 +38,57 @@ class LibraryShowScreen extends ConsumerWidget {
     final show = lib.show;
     final t = Theme.of(context).textTheme;
     final eps = lib.episodes;
+    final wide = MediaQuery.sizeOf(context).width >= 700;
 
     // Continue where you left off, or start at the first unwatched episode.
-    DownloadRecord? next;
     final partial = eps.where((e) => history[e.episode]?.isPartial ?? false).toList()
       ..sort((a, b) => history[b.episode]!.updatedAt.compareTo(history[a.episode]!.updatedAt));
-    next = partial.firstOrNull ?? eps.where((e) => !(history[e.episode]?.isFinished ?? false)).firstOrNull ?? eps.first;
+    final next = partial.firstOrNull ?? eps.where((e) => !(history[e.episode]?.isFinished ?? false)).firstOrNull ?? eps.first;
     final nextPartial = history[next.episode]?.isPartial ?? false;
+    final playButton = FilledButton.icon(
+      icon: const Icon(Icons.play_arrow_rounded),
+      label: Text(nextPartial ? tr.resumeEpisode(next.episode) : tr.playEpisode(next.episode), maxLines: 1, overflow: TextOverflow.ellipsis),
+      onPressed: () => _play(context, show.title, next),
+    );
+    final moreButton = OutlinedButton.icon(
+      icon: const Icon(Icons.download_rounded),
+      label: Text(tr.getMore),
+      onPressed: () => _downloadNext(context, ref, lib),
+    );
 
     return Scaffold(
+      // Phones get the main actions in a bottom bar, within thumb reach.
+      bottomNavigationBar: wide
+          ? null
+          : StickyActionBar(
+              child: Row(children: [
+                Expanded(child: playButton),
+                const SizedBox(width: Gap.s),
+                moreButton,
+              ]),
+            ),
       body: CustomScrollView(
         slivers: [
-          SliverAppBar(
-            pinned: true,
+          PosterSliverAppBar(
+            title: show.title,
+            posterUrl: show.poster,
+            posterPath: show.posterPath,
             expandedHeight: 260,
             actions: [
               PopupMenuButton<String>(
+                tooltip: tr.more,
                 onSelected: (v) async {
-                  if (v == 'delete') {
-                    final ok = await _confirm(context, tr.deleteShowTitle(show.title), tr.deleteShowBody(eps.length));
-                    if (ok) {
-                      await ref.read(downloadManagerProvider).deleteShow(slug);
-                      if (context.mounted) Navigator.of(context).pop();
-                    }
-                  }
+                  if (v != 'delete') return;
+                  final ok = await confirmAction(context, title: tr.deleteShowTitle(show.title), message: tr.deleteShowBody(eps.length));
+                  if (!ok) return;
+                  await ref.read(downloadManagerProvider).deleteShow(slug);
+                  if (!context.mounted) return;
+                  showAppSnackBar(context, tr.deletedShow(show.title));
+                  Navigator.of(context).pop();
                 },
                 itemBuilder: (_) => [PopupMenuItem(value: 'delete', child: Text(tr.deleteAllEpisodes))],
               ),
             ],
-            flexibleSpace: FlexibleSpaceBar(
-              background: Stack(fit: StackFit.expand, children: [
-                PosterImage(url: show.poster, localPath: show.posterPath),
-                const DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [Color(0x66000000), Color(0x00000000), kBackground],
-                      stops: [0, 0.35, 1],
-                    ),
-                  ),
-                ),
-              ]),
-            ),
           ),
           SliverToBoxAdapter(
             child: Padding(
@@ -87,54 +100,49 @@ class LibraryShowScreen extends ConsumerWidget {
                     style: t.bodyMedium?.copyWith(color: Colors.white60)),
                 if (show.synopsis.isNotEmpty) ...[
                   const SizedBox(height: Gap.s),
-                  Text(show.synopsis, maxLines: 4, overflow: TextOverflow.ellipsis, style: t.bodyMedium?.copyWith(color: Colors.white70, height: 1.4)),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 760),
+                    child: Text(show.synopsis, maxLines: 4, overflow: TextOverflow.ellipsis, style: t.bodyMedium?.copyWith(color: Colors.white70, height: 1.4)),
+                  ),
                 ],
                 const SizedBox(height: Gap.m),
-                Row(children: [
-                  Expanded(
-                    child: FilledButton.icon(
-                      icon: const Icon(Icons.play_arrow_rounded),
-                      label: Text(nextPartial ? tr.resumeEpisode(next.episode) : tr.playEpisode(next.episode)),
-                      onPressed: () => _play(context, show.title, next!),
-                    ),
-                  ),
-                  const SizedBox(width: Gap.s),
-                  OutlinedButton.icon(
-                    icon: const Icon(Icons.download_rounded),
-                    label: Text(tr.getMore),
-                    onPressed: () => _downloadNext(context, ref, lib),
-                  ),
-                ]),
-                const SizedBox(height: Gap.m),
+                if (wide) ...[
+                  Row(children: [
+                    ConstrainedBox(constraints: const BoxConstraints(minWidth: 240, maxWidth: 360), child: playButton),
+                    const SizedBox(width: Gap.s),
+                    moreButton,
+                  ]),
+                  const SizedBox(height: Gap.m),
+                ],
               ]),
             ),
           ),
-          SliverList.builder(
-            itemCount: eps.length,
-            itemBuilder: (context, i) {
-              final d = eps[i];
-              final h = history[d.episode];
-              return _EpisodeRow(
-                record: d,
-                history: h,
-                show: show.title,
-                posterPath: show.posterPath,
-                posterUrl: show.poster,
-                onPlay: () => _play(context, show.title, d),
-                onDelete: () async {
-                  final ok = await _confirm(context, tr.deleteEpisodeTitle(d.episode), tr.deleteEpisodeBody);
-                  if (ok) await ref.read(downloadManagerProvider).deleteEpisode(d.key);
-                },
-                onToggleWatched: () {
-                  final db = ref.read(dbProvider);
-                  if (h?.isFinished ?? false) {
-                    db.saveProgress(slug, d.episode, 0, h!.durationMs);
-                  } else {
-                    db.markWatched(slug, d.episode, durationMs: d.durationMs > 0 ? d.durationMs : 1);
-                  }
-                },
-              );
-            },
+          SliverMaxWidth(
+            maxWidth: 900,
+            sliver: SliverList.builder(
+              itemCount: eps.length,
+              itemBuilder: (context, i) {
+                final d = eps[i];
+                return _EpisodeRow(
+                  key: ValueKey(d.key),
+                  record: d,
+                  history: history[d.episode],
+                  posterPath: show.posterPath,
+                  posterUrl: show.poster,
+                  onPlay: () => _play(context, show.title, d),
+                  confirmDelete: () => confirmAction(context, title: tr.deleteEpisodeTitle(d.episode), message: tr.deleteEpisodeBody),
+                  onDelete: () async {
+                    await ref.read(downloadManagerProvider).deleteEpisode(d.key);
+                    if (context.mounted) showAppSnackBar(context, tr.deletedEpisode(d.episode));
+                  },
+                  onToggleWatched: () async {
+                    final watched = !(history[d.episode]?.isFinished ?? false);
+                    final undo = await markEpisodes(ref, slug, {d.episode: d.durationMs}, watched: watched);
+                    if (context.mounted) showAppSnackBar(context, watched ? tr.markedWatched(1) : tr.markedUnwatched(1), onUndo: undo);
+                  },
+                );
+              },
+            ),
           ),
           const SliverToBoxAdapter(child: SizedBox(height: Gap.xl)),
         ],
@@ -148,70 +156,71 @@ class LibraryShowScreen extends ConsumerWidget {
 
   Future<void> _downloadNext(BuildContext context, WidgetRef ref, LibraryShow lib) async {
     final tr = Strings.of(context);
-    final count = await showModalBottomSheet<int>(
-      context: context,
-      builder: (ctx) => SafeArea(
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Padding(padding: const EdgeInsets.all(Gap.m), child: Text(tr.downloadTheNext, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 18))),
-          for (final n in [1, 3, 5, 10])
-            ListTile(title: Text(tr.nextEpisodes(n)), onTap: () => Navigator.pop(ctx, n)),
-        ]),
-      ),
-    );
+    final count = await showActionSheet<int>(context, title: tr.downloadTheNext, actions: [
+      for (final n in [1, 3, 5, 10]) SheetAction(value: n, icon: Icons.download_rounded, label: tr.nextEpisodes(n)),
+    ]);
     if (count == null || !context.mounted) return;
-    final messenger = ScaffoldMessenger.of(context);
     try {
       final bundle = await ref.read(showProvider(slug).future);
       final have = lib.episodes.map((e) => e.numeric).fold<double>(0, (a, b) => b > a ? b : a);
       final type = lib.episodes.last.type;
       final next = bundle.episodes.where((e) => e.numeric > have).take(count).toList();
       if (next.isEmpty) {
-        messenger.showSnackBar(SnackBar(content: Text(tr.allCaughtUp)));
+        if (context.mounted) showAppSnackBar(context, tr.allCaughtUp);
         return;
       }
       await ref.read(downloadManagerProvider).enqueue(bundle.detail, next, type, ref.read(settingsProvider).quality);
-      messenger.showSnackBar(SnackBar(content: Text(tr.addedToDownloads(next.length))));
+      if (context.mounted) showAppSnackBar(context, tr.addedToDownloads(next.length));
     } catch (_) {
-      messenger.showSnackBar(SnackBar(content: Text(tr.connectToDownload)));
+      if (context.mounted) showAppSnackBar(context, tr.connectToDownload);
     }
-  }
-
-  Future<bool> _confirm(BuildContext context, String title, String message) async {
-    final tr = Strings.of(context);
-    final r = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(title),
-        content: Text(message),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(tr.cancel)),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: Text(tr.delete)),
-        ],
-      ),
-    );
-    return r ?? false;
   }
 }
 
 class _EpisodeRow extends StatelessWidget {
   const _EpisodeRow({
+    super.key,
     required this.record,
     required this.history,
-    required this.show,
     required this.posterPath,
     required this.posterUrl,
     required this.onPlay,
+    required this.confirmDelete,
     required this.onDelete,
     required this.onToggleWatched,
   });
   final DownloadRecord record;
   final HistoryEntry? history;
-  final String show;
   final String? posterPath;
   final String? posterUrl;
   final VoidCallback onPlay;
+  final Future<bool> Function() confirmDelete;
   final VoidCallback onDelete;
   final VoidCallback onToggleWatched;
+
+  Future<void> _askDelete() async {
+    if (await confirmDelete()) onDelete();
+  }
+
+  /// Long press / right click: the same actions as the ⋮ menu, in a sheet
+  /// that is easier to reach on a phone.
+  Future<void> _showActions(BuildContext context, bool watched) async {
+    hapticTick();
+    final tr = Strings.of(context);
+    final picked = await showActionSheet<String>(context, title: tr.episode(record.episode), actions: [
+      SheetAction(value: 'play', icon: Icons.play_arrow_rounded, label: tr.play),
+      SheetAction(value: 'watched', icon: watched ? Icons.radio_button_unchecked_rounded : Icons.check_circle_outline_rounded, label: tr.markWatched(watched)),
+      SheetAction(value: 'delete', icon: Icons.delete_outline_rounded, label: tr.deleteEpisode, destructive: true),
+    ]);
+    switch (picked) {
+      case 'play':
+        onPlay();
+      case 'watched':
+        onToggleWatched();
+      case 'delete':
+        await _askDelete();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -226,13 +235,15 @@ class _EpisodeRow extends StatelessWidget {
       if (record.quality.isNotEmpty) record.quality,
       record.type == AudioType.dub ? tr.dub : tr.sub,
     ].join(' · ');
-    return InkWell(
+    final row = InkWell(
       onTap: onPlay,
+      onLongPress: () => _showActions(context, watched),
+      onSecondaryTap: () => _showActions(context, watched),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: Gap.m, vertical: 8),
+        padding: const EdgeInsets.only(left: Gap.m, right: Gap.xs, top: Gap.s, bottom: Gap.s),
         child: Row(children: [
           ClipRRect(
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(Radii.small),
             child: SizedBox(
               width: 120,
               height: 68,
@@ -269,12 +280,13 @@ class _EpisodeRow extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: t.bodyLarge?.copyWith(fontWeight: FontWeight.w600, color: watched ? Colors.white54 : Colors.white)),
               const SizedBox(height: 2),
-              Text(meta, style: t.bodySmall?.copyWith(color: Colors.white54)),
+              Text(meta, maxLines: 1, overflow: TextOverflow.ellipsis, style: t.bodySmall?.copyWith(color: Colors.white54)),
             ]),
           ),
           if (watched) const Padding(padding: EdgeInsets.only(right: 4), child: Icon(Icons.check_circle_rounded, color: kAccent, size: 20)),
           PopupMenuButton<String>(
-            onSelected: (v) => v == 'delete' ? onDelete() : onToggleWatched(),
+            tooltip: tr.more,
+            onSelected: (v) => v == 'delete' ? _askDelete() : onToggleWatched(),
             itemBuilder: (_) => [
               PopupMenuItem(value: 'watched', child: Text(tr.markWatched(watched))),
               PopupMenuItem(value: 'delete', child: Text(tr.deleteEpisode)),
@@ -282,6 +294,24 @@ class _EpisodeRow extends StatelessWidget {
           ),
         ]),
       ),
+    );
+    // Swipe left to delete; it still asks first, because the file is gone for good.
+    return Dismissible(
+      key: ValueKey('dismiss-${record.key}'),
+      direction: DismissDirection.endToStart,
+      // The row leaves the list when the download is gone from the database,
+      // so the swipe itself never removes it.
+      confirmDismiss: (_) async {
+        await _askDelete();
+        return false;
+      },
+      background: Container(
+        color: Theme.of(context).colorScheme.errorContainer,
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.symmetric(horizontal: Gap.l),
+        child: Icon(Icons.delete_outline_rounded, color: Theme.of(context).colorScheme.onErrorContainer),
+      ),
+      child: row,
     );
   }
 }
