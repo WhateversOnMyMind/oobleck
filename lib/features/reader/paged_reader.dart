@@ -13,13 +13,7 @@ import 'reader_settings.dart';
 /// The page after the last one is a chapter end card; going on from there
 /// opens the next chapter.
 class PagedReader extends StatefulWidget {
-  const PagedReader({
-    super.key,
-    required this.c,
-    required this.settings,
-    required this.onTap,
-    required this.onLongPressPage,
-  });
+  const PagedReader({super.key, required this.c, required this.settings, required this.onTap, required this.onLongPressPage});
 
   final ReaderController c;
   final ReaderSettings settings;
@@ -36,6 +30,10 @@ class _PagedReaderState extends State<PagedReader> {
   final _zoom = <int, TransformationController>{};
   bool _zoomed = false;
   Offset? _doubleTapAt;
+
+  /// How far the reader has dragged past the end card, in pixels.
+  double _pastEnd = 0;
+  bool _leaving = false;
 
   ReaderController get c => widget.c;
   ReaderMode get mode => c.mode;
@@ -77,6 +75,32 @@ class _PagedReaderState extends State<PagedReader> {
     unawaited(_pages.animateToPage(target, duration: const Duration(milliseconds: 220), curve: Curves.easeOut));
   }
 
+  /// Dragging on past the end card opens the next chapter. Works with both
+  /// clamping (overscroll events) and bouncing physics (pixels past the end).
+  bool _onScroll(ScrollNotification n) {
+    if (n.depth != 0 || _leaving) return false;
+    final atEnd = (_pages.hasClients ? _pages.page?.round() : null) == _pageCount;
+    if (!atEnd) {
+      _pastEnd = 0;
+      return false;
+    }
+    if (n is OverscrollNotification && n.dragDetails != null && n.overscroll > 0) {
+      _pastEnd += n.overscroll;
+    } else if (n is ScrollUpdateNotification && n.dragDetails != null) {
+      final beyond = n.metrics.pixels - n.metrics.maxScrollExtent;
+      if (beyond > 0) _pastEnd = beyond;
+    } else if (n is ScrollEndNotification) {
+      _pastEnd = 0;
+    }
+    final threshold = (n.metrics.viewportDimension * 0.12).clamp(48.0, 140.0);
+    final next = c.nextChapter;
+    if (_pastEnd > threshold && next != null) {
+      _leaving = true;
+      unawaited(c.goTo(next));
+    }
+    return false;
+  }
+
   void _onPageChanged(int i) {
     _resetZoom();
     if (i >= _pageCount) {
@@ -95,13 +119,13 @@ class _PagedReaderState extends State<PagedReader> {
   }
 
   TransformationController _zoomFor(int i) => _zoom.putIfAbsent(i, () {
-        final z = TransformationController();
-        z.addListener(() {
-          final zoomed = z.value.getMaxScaleOnAxis() > 1.01;
-          if (zoomed != _zoomed) setState(() => _zoomed = zoomed);
-        });
-        return z;
-      });
+    final z = TransformationController();
+    z.addListener(() {
+      final zoomed = z.value.getMaxScaleOnAxis() > 1.01;
+      if (zoomed != _zoomed) setState(() => _zoomed = zoomed);
+    });
+    return z;
+  });
 
   void _toggleZoomAt(int i) {
     final z = _zoomFor(i);
@@ -120,42 +144,45 @@ class _PagedReaderState extends State<PagedReader> {
   Widget build(BuildContext context) {
     final tr = Strings.of(context);
     final rtl = mode == ReaderMode.rtl;
-    return LayoutBuilder(builder: (context, box) {
-      return PageView.builder(
-        controller: _pages,
-        scrollDirection: mode == ReaderMode.vertical ? Axis.vertical : Axis.horizontal,
-        reverse: rtl,
-        physics: _zoomed ? const NeverScrollableScrollPhysics() : const PageScrollPhysics(),
-        onPageChanged: _onPageChanged,
-        itemCount: _pageCount + 1,
-        itemBuilder: (context, i) {
-          if (i >= _pageCount) return _endCard(tr);
-          final ref = c.current!.pages[i];
-          return GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTapUp: (d) => widget.onTap(tapActionAt(
-              widget.settings.tapLayout,
-              d.localPosition.dx / box.maxWidth,
-              d.localPosition.dy / box.maxHeight,
-              invert: widget.settings.invertTaps,
-              rtl: rtl,
-            )),
-            onDoubleTapDown: (d) => _doubleTapAt = d.localPosition,
-            onDoubleTap: () => _toggleZoomAt(i),
-            child: InteractiveViewer(
-              transformationController: _zoomFor(i),
-              minScale: 1,
-              maxScale: 5,
-              child: SizedBox(
-                width: box.maxWidth,
-                height: box.maxHeight,
-                child: _scaled(ref, i, box),
-              ),
-            ),
-          );
-        },
-      );
-    });
+    return LayoutBuilder(
+      builder: (context, box) {
+        return NotificationListener<ScrollNotification>(
+          onNotification: _onScroll,
+          child: PageView.builder(
+            controller: _pages,
+            scrollDirection: mode == ReaderMode.vertical ? Axis.vertical : Axis.horizontal,
+            reverse: rtl,
+            physics: _zoomed ? const NeverScrollableScrollPhysics() : const PageScrollPhysics(),
+            onPageChanged: _onPageChanged,
+            itemCount: _pageCount + 1,
+            itemBuilder: (context, i) {
+              if (i >= _pageCount) return _endCard(tr);
+              final ref = c.current!.pages[i];
+              return GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTapUp: (d) => widget.onTap(
+                  tapActionAt(
+                    widget.settings.tapLayout,
+                    d.localPosition.dx / box.maxWidth,
+                    d.localPosition.dy / box.maxHeight,
+                    invert: widget.settings.invertTaps,
+                    rtl: rtl,
+                  ),
+                ),
+                onDoubleTapDown: (d) => _doubleTapAt = d.localPosition,
+                onDoubleTap: () => _toggleZoomAt(i),
+                child: InteractiveViewer(
+                  transformationController: _zoomFor(i),
+                  minScale: 1,
+                  maxScale: 5,
+                  child: SizedBox(width: box.maxWidth, height: box.maxHeight, child: _scaled(ref, i, box)),
+                ),
+              );
+            },
+          ),
+        );
+      },
+    );
   }
 
   Widget _scaled(ReaderPageRef ref, int i, BoxConstraints box) {
@@ -171,7 +198,9 @@ class _PagedReaderState extends State<PagedReader> {
     );
     // Fit width on a tall page scrolls inside the page.
     if (widget.settings.scale == PageScale.fitWidth) {
-      return SingleChildScrollView(child: SizedBox(width: box.maxWidth, child: page));
+      return SingleChildScrollView(
+        child: SizedBox(width: box.maxWidth, child: page),
+      );
     }
     return page;
   }
@@ -186,21 +215,27 @@ class _PagedReaderState extends State<PagedReader> {
       child: Center(
         child: Padding(
           padding: const EdgeInsets.all(32),
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Text(tr.finishedChapter(c.current!.chapter.title), style: t.titleMedium?.copyWith(color: fg.withValues(alpha: 0.7))),
-            const SizedBox(height: 10),
-            if (next == null)
-              Text(tr.noNextChapter, style: t.titleLarge?.copyWith(color: fg, fontWeight: FontWeight.w700))
-            else ...[
-              Text(tr.upNext(next.title), textAlign: TextAlign.center, style: t.titleLarge?.copyWith(color: fg, fontWeight: FontWeight.w700)),
-              const SizedBox(height: 16),
-              FilledButton.icon(
-                onPressed: () => unawaited(c.goTo(next)),
-                icon: const Icon(Icons.skip_next_rounded),
-                label: Text(tr.nextChapter),
-              ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(tr.finishedChapter(c.current!.chapter.title), style: t.titleMedium?.copyWith(color: fg.withValues(alpha: 0.7))),
+              const SizedBox(height: 10),
+              if (next == null)
+                Text(
+                  tr.noNextChapter,
+                  style: t.titleLarge?.copyWith(color: fg, fontWeight: FontWeight.w700),
+                )
+              else ...[
+                Text(
+                  tr.upNext(next.title),
+                  textAlign: TextAlign.center,
+                  style: t.titleLarge?.copyWith(color: fg, fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 16),
+                FilledButton.icon(onPressed: () => unawaited(c.goTo(next)), icon: const Icon(Icons.skip_next_rounded), label: Text(tr.nextChapter)),
+              ],
             ],
-          ]),
+          ),
         ),
       ),
     );
