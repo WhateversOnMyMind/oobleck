@@ -2,11 +2,16 @@ import 'dart:async';
 
 import 'package:hive_ce/hive.dart';
 
+import '../manga/manga_models.dart';
+import 'manga_records.dart';
 import 'records.dart';
+
+part 'manga_store.dart';
 
 /// Local database (Hive CE, JSON-ish maps). Decision recorded in DECISIONS.md.
 class AppDb {
-  AppDb._(this._shows, this._episodes, this._history, this._downloads, this._settings, this._misc);
+  AppDb._(this._shows, this._episodes, this._history, this._downloads, this._settings, this._misc, this._manga,
+      this._mangaChapters, this._mangaState, this._mangaUpdates, this._mangaDownloads);
 
   final Box<dynamic> _shows;
   final Box<dynamic> _episodes;
@@ -14,6 +19,11 @@ class AppDb {
   final Box<dynamic> _downloads;
   final Box<dynamic> _settings;
   final Box<dynamic> _misc;
+  final Box<dynamic> _manga;
+  final Box<dynamic> _mangaChapters;
+  final Box<dynamic> _mangaState;
+  final Box<dynamic> _mangaUpdates;
+  final Box<dynamic> _mangaDownloads;
 
   static Future<AppDb> open(String dir) async {
     Hive.init(dir);
@@ -24,6 +34,11 @@ class AppDb {
       await Hive.openBox<dynamic>('downloads'),
       await Hive.openBox<dynamic>('settings'),
       await Hive.openBox<dynamic>('misc'),
+      await Hive.openBox<dynamic>('manga'),
+      await Hive.openBox<dynamic>('manga_chapters'),
+      await Hive.openBox<dynamic>('manga_state'),
+      await Hive.openBox<dynamic>('manga_updates'),
+      await Hive.openBox<dynamic>('manga_downloads'),
     );
   }
 

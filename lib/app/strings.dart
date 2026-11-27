@@ -25,6 +25,10 @@ class Strings {
 
   String _(String english, String korean) => isKorean ? korean : english;
 
+  /// For feature files that keep their own strings in an extension on
+  /// [Strings] (e.g. `features/manga/manga_strings.dart`).
+  String pick(String english, String korean) => _(english, korean);
+
   // ---- common ----------------------------------------------------------------
   String get cancel => _('Cancel', '취소');
   String get delete => _('Delete', '삭제');
